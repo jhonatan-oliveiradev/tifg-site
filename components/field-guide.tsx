@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AniDoodlePiece } from "@/components/anidoodle-piece";
+import { FieldGuidePreloader, useEditorialReveals } from "@/components/editorial-motion";
 import { fieldGuideHero } from "@/art/pieces/hero";
 import { createSpecimenPiece, type SpecimenKind } from "@/art/pieces/specimens";
 
@@ -226,7 +227,14 @@ export function FieldGuide() {
   const [quietStage, setQuietStage] = useState(0);
   const [quietRemaining, setQuietRemaining] = useState(QUIET_DURATION_MS / 1000);
   const [quietStatus, setQuietStatus] = useState<"waiting" | "observing" | "reset" | "complete">("waiting");
+  const [heroReady, setHeroReady] = useState(false);
+  const [introReady, setIntroReady] = useState(false);
   const quietRef = useRef<HTMLElement>(null);
+
+  const handleHeroReady = useCallback(() => setHeroReady(true), []);
+  const handleIntroComplete = useCallback(() => setIntroReady(true), []);
+
+  useEditorialReveals(introReady, secretVisible ? 1 : 0);
 
   useEffect(() => {
     try {
@@ -397,7 +405,10 @@ export function FieldGuide() {
       : quietCopy[quietStage];
 
   return (
-    <main id="field-guide">
+    <>
+      <FieldGuidePreloader ready={heroReady} onComplete={handleIntroComplete} />
+
+      <main id="field-guide" className={introReady ? "is-motion-ready" : undefined}>
       <p className="sr-only" aria-live="polite">
         {secretAnnouncement}
       </p>
@@ -465,6 +476,7 @@ export function FieldGuide() {
               scrollTrack="#hero-story"
               className="hero-art"
               label="The Intertab Moth being drawn into life as the page scrolls"
+              onReady={handleHeroReady}
             />
             <div className="plate-caption">
               <span>FIG. A</span>
@@ -625,6 +637,7 @@ export function FieldGuide() {
           Study the drawing engine ↗
         </a>
       </footer>
-    </main>
+      </main>
+    </>
   );
 }
