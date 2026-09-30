@@ -52,27 +52,29 @@ export function FieldGuidePreloader({
 
     const elapsed = performance.now() - startedAt.current;
     const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
+    let exitTimer = 0;
+    let completeTimer = 0;
 
     const readyTimer = window.setTimeout(() => {
       setProgress(100);
 
-      const exitTimer = window.setTimeout(() => {
+      exitTimer = window.setTimeout(() => {
         setExiting(true);
 
-        const completeTimer = window.setTimeout(() => {
+        completeTimer = window.setTimeout(() => {
           completedRef.current = true;
           setMounted(false);
           document.body.style.overflow = "";
           onComplete();
         }, EXIT_MS);
-
-        return () => window.clearTimeout(completeTimer);
       }, 170);
-
-      return () => window.clearTimeout(exitTimer);
     }, wait);
 
-    return () => window.clearTimeout(readyTimer);
+    return () => {
+      window.clearTimeout(readyTimer);
+      window.clearTimeout(exitTimer);
+      window.clearTimeout(completeTimer);
+    };
   }, [ready, fallbackReady, onComplete]);
 
   if (!mounted) return null;
