@@ -16,6 +16,7 @@ export function FieldGuidePreloader({
   onComplete,
 }: FieldGuidePreloaderProps) {
   const [progress, setProgress] = useState(4);
+  const [fallbackReady, setFallbackReady] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [mounted, setMounted] = useState(true);
   const startedAt = useRef(0);
@@ -36,6 +37,7 @@ export function FieldGuidePreloader({
 
     const fallback = window.setTimeout(() => {
       setProgress(100);
+      setFallbackReady(true);
     }, FALLBACK_READY_MS);
 
     return () => {
@@ -46,7 +48,7 @@ export function FieldGuidePreloader({
   }, []);
 
   useEffect(() => {
-    if (!ready || completedRef.current) return;
+    if ((!ready && !fallbackReady) || completedRef.current) return;
 
     const elapsed = performance.now() - startedAt.current;
     const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
@@ -71,7 +73,7 @@ export function FieldGuidePreloader({
     }, wait);
 
     return () => window.clearTimeout(readyTimer);
-  }, [ready, onComplete]);
+  }, [ready, fallbackReady, onComplete]);
 
   if (!mounted) return null;
 
@@ -135,7 +137,7 @@ export function useEditorialReveals(enabled: boolean, refreshKey = 0) {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
       targets.forEach((element) => element.classList.add("is-revealed"));
-      return () => root.classList.remove("tifg-motion");
+      return;
     }
 
     const observer = new IntersectionObserver(
@@ -158,7 +160,6 @@ export function useEditorialReveals(enabled: boolean, refreshKey = 0) {
 
     return () => {
       observer.disconnect();
-      root.classList.remove("tifg-motion");
     };
   }, [enabled, refreshKey]);
 }
