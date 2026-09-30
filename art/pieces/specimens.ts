@@ -220,11 +220,29 @@ function drawGoblin(g: Gfx, tick: number, look: P, active: boolean) {
   c.restore();
 
   if (active) {
-    const handL = B([[-87, -4]])[0];
-    const handR = [badgeX - 17, badgeY + 20] as P;
-    const arm = tube([handL, [445, 219], handR], 9, 7, false);
-    g.group("paint", () => g.form(arm, "#dfe5cc", "#a6ad8f", { seed: 315, light: [-3, -4] }));
-    g.group("ink", () => g.pen(arm, { closed: true, w: 2.6, seed: 316, wobble: 0.5 }));
+    // Reach from the badge-side shoulder. The previous left-side origin cut a
+    // long diagonal limb across the whole specimen and read like broken geometry.
+    const shoulder = B([[78, -70]])[0];
+    const hand = [badgeX - 19, badgeY + 28] as P;
+    const elbow: P = [452, 190 + bounce * 0.35];
+    const arm = tube([shoulder, elbow, hand], 10, 7, false);
+
+    g.group("paint", () => {
+      g.form(arm, "#dfe5cc", "#a6ad8f", { seed: 315, light: [-3, -4] });
+      g.form(oval(hand[0], hand[1], 12, 9, 8), "#dfe5cc", "#a6ad8f", {
+        seed: 317,
+        light: [-2, -3],
+      });
+    });
+    g.group("ink", () => {
+      g.pen(arm, { closed: true, w: 2.6, seed: 316, wobble: 0.5 });
+      g.pen(oval(hand[0], hand[1], 12, 9, 8), {
+        closed: true,
+        w: 1.8,
+        seed: 318,
+        wobble: 0.4,
+      });
+    });
   }
 }
 

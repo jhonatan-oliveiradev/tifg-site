@@ -362,12 +362,14 @@ export const fieldGuideHero: Piece = {
     ctx.globalCompositeOperation = "source-over";
     paper(ctx);
 
-    const p = state.reduced ? 1 : scrollSpan(state.spring.p as number, 0.01, 0.93);
-    const c = clamp(p / 0.2);
-    const s = clamp((p - 0.12) / 0.31);
-    const w = clamp((p - 0.37) / 0.29);
-    const i = clamp((p - 0.61) / 0.27);
-    const alive = clamp((p - 0.84) / 0.16);
+    // Front-load the illustration so the plate never feels broken/empty,
+    // then reserve the final ~30% of the scroll sequence for the living specimen.
+    const p = state.reduced ? 1 : scrollSpan(state.spring.p as number, 0.005, 0.88);
+    const c = clamp(p / 0.12);
+    const s = clamp((p - 0.06) / 0.22);
+    const w = clamp((p - 0.23) / 0.2);
+    const i = clamp((p - 0.4) / 0.22);
+    const alive = clamp((p - 0.58) / 0.12);
 
     construction(ctx, c);
     sketch(ctx, s);
@@ -382,9 +384,9 @@ export const fieldGuideHero: Piece = {
     ctx.fillText("CONSTRUCTION / WASH / FINAL LINE", 26, H - 28);
     ctx.restore();
 
-    if (!state.reduced && p < 0.82) {
-      if (p < 0.39) tool(ctx, clamp(s), "pencil");
-      else if (p < 0.65) tool(ctx, clamp(w), "brush");
+    if (!state.reduced && p < 0.62) {
+      if (p < 0.23) tool(ctx, clamp(s), "pencil");
+      else if (p < 0.43) tool(ctx, clamp(w), "brush");
       else tool(ctx, clamp(i), "pencil");
     }
 
@@ -395,9 +397,9 @@ export const fieldGuideHero: Piece = {
       ctx.restore();
     }
 
-    if (p > 0.94) {
+    if (p > 0.78) {
       ctx.save();
-      ctx.globalAlpha = clamp((p - 0.94) / 0.06);
+      ctx.globalAlpha = clamp((p - 0.78) / 0.08);
       ctx.strokeStyle = RED;
       ctx.lineWidth = 1.2;
       ctx.setLineDash([5, 6]);

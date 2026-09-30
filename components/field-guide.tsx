@@ -208,6 +208,8 @@ function SpecimenCard({
 }
 
 const quietStates = ["hidden", "trace", "eyes", "form", "revealed"] as const;
+const QUIET_DURATION_MS = 7200;
+const QUIET_POINTER_TOLERANCE = 28;
 const quietCopy = [
   "Enter the blind and stop disturbing the habitat.",
   "Something moved behind the paper grain.",
@@ -222,6 +224,8 @@ export function FieldGuide() {
   const [secretAnnouncement, setSecretAnnouncement] = useState("");
   const [quietVisible, setQuietVisible] = useState(false);
   const [quietStage, setQuietStage] = useState(0);
+  const [quietRemaining, setQuietRemaining] = useState(QUIET_DURATION_MS / 1000);
+  const [quietStatus, setQuietStatus] = useState<"waiting" | "observing" | "reset" | "complete">("waiting");
   const quietRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -233,6 +237,8 @@ export function FieldGuide() {
       if (localStorage.getItem(LURKER_SEEN_KEY) === "1" || stored?.includes?.(lurker.id)) {
         setSecretVisible(true);
         setQuietStage(4);
+        setQuietRemaining(0);
+        setQuietStatus("complete");
       }
     } catch {
       // The guide remains usable without persistence.
@@ -252,55 +258,112 @@ export function FieldGuide() {
   }, []);
 
   useEffect(() => {
-    if (!quietVisible || secretVisible) return;
+    if (secretVisible) {
+      setQuietStage(4);
+      setQuietRemaining(0);
+      setQuietStatus("complete");
+      return;
+    }
 
-    let timers: number[] = [];
-    let lastReset = 0;
-
-    const clear = () => {
-      timers.forEach((timer) => window.clearTimeout(timer));
-      timers = [];
-    };
-
-    const schedule = () => {
-      clear();
+    if (!quietVisible) {
       setQuietStage(0);
-      timers = [
-        window.setTimeout(() => setQuietStage(1), 1400),
-        window.setTimeout(() => setQuietStage(2), 3200),
-        window.setTimeout(() => setQuietStage(3), 5100),
-        window.setTimeout(() => {
-          setQuietStage(4);
-          setSecretVisible(true);
-          setSecretAnnouncement("A hidden specimen has emerged: The Lurker.");
-          try {
-            localStorage.setItem(LURKER_SEEN_KEY, "1");
-          } catch {
-            // Persistence is enhancement-only.
-          }
-        }, 7200),
-      ];
+      setQuietRemaining(QUIET_DURATION_MS / 1000);
+      setQuietStatus("waiting");
+      return;
+    }
+
+    let startedAt = performance.now();
+    let intervalId = 0;
+    let statusTimer = 0;
+    let completed = false;
+    let pointerAnchor: { x: number; y: number } | null = null;
+    let scrollAnchor = window.scrollY;
+
+    const stageForElapsed = (elapsed: number) => {
+      if (elapsed >= 5100) return 3;
+      if (elapsed >= 3200) return 2;
+      if (elapsed >= 1400) return 1;
+      return 0;
     };
 
-    const disturb = () => {
-      const now = performance.now();
-      if (now - lastReset < 160) return;
-      lastReset = now;
-      schedule();
+    const finish = () => {
+      if (completed) return;
+      completed = true;
+      window.clearInterval(intervalId);
+      window.clearTimeout(statusTimer);
+      setQuietStage(4);
+      setQuietRemaining(0);
+      setQuietStatus("complete");
+      setSecretVisible(true);
+      setSecretAnnouncement("A hidden specimen has emerged: The Lurker.");
+      try {
+        localStorage.setItem(LURKER_SEEN_KEY, "1");
+      } catch {
+        // Persistence is enhancement-only.
+      }
     };
 
-    schedule();
-    window.addEventListener("pointermove", disturb, { passive: true });
-    window.addEventListener("pointerdown", disturb, { passive: true });
-    window.addEventListener("keydown", disturb);
-    window.addEventListener("scroll", disturb, { passive: true });
+    const update = () => {
+      const elapsed = performance.now() - startedAt;
+      const remaining = Math.max(0, (QUIET_DURATION_MS - elapsed) / 1000);
+      setQuietRemaining(remaining);
+      setQuietStage(stageForElapsed(elapsed));
+      if (elapsed >= QUIET_DURATION_MS) finish();
+    };
+
+    const restart = () => {
+      if (completed) return;
+      startedAt = performance.now();
+      setQuietStage(0);
+      setQuietRemaining(QUIET_DURATION_MS / 1000);
+      setQuietStatus("reset");
+      window.clearTimeout(statusTimer);
+      statusTimer = window.setTimeout(() => setQuietStatus("observing"), 560);
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pointerAnchor) {
+        pointerAnchor = { x: event.clientX, y: event.clientY };
+        return;
+      }
+
+      const distance = Math.hypot(
+        event.clientX - pointerAnchor.x,
+        event.clientY - pointerAnchor.y,
+      );
+
+      // Trackpad/mouse sensor noise should not make the blind impossible.
+      if (distance < QUIET_POINTER_TOLERANCE) return;
+
+      pointerAnchor = { x: event.clientX, y: event.clientY };
+      restart();
+    };
+
+    const onScroll = () => {
+      const distance = Math.abs(window.scrollY - scrollAnchor);
+      if (distance < 16) return;
+      scrollAnchor = window.scrollY;
+      restart();
+    };
+
+    const onHardDisturbance = () => restart();
+
+    setQuietStatus("observing");
+    update();
+    intervalId = window.setInterval(update, 100);
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerdown", onHardDisturbance, { passive: true });
+    window.addEventListener("keydown", onHardDisturbance);
+    window.addEventListener("scroll", onScroll, { passive: true });
 
     return () => {
-      clear();
-      window.removeEventListener("pointermove", disturb);
-      window.removeEventListener("pointerdown", disturb);
-      window.removeEventListener("keydown", disturb);
-      window.removeEventListener("scroll", disturb);
+      window.clearInterval(intervalId);
+      window.clearTimeout(statusTimer);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerdown", onHardDisturbance);
+      window.removeEventListener("keydown", onHardDisturbance);
+      window.removeEventListener("scroll", onScroll);
     };
   }, [quietVisible, secretVisible]);
 
@@ -326,6 +389,12 @@ export function FieldGuide() {
     : secretVisible
       ? "revealed"
       : quietStates[quietStage];
+
+  const quietMessage = secretVisible
+    ? "The habitat remembers that you found it."
+    : quietStatus === "reset"
+      ? "Movement detected. The specimen withdrew; observation has restarted."
+      : quietCopy[quietStage];
 
   return (
     <main id="field-guide">
@@ -451,11 +520,16 @@ export function FieldGuide() {
         </div>
       </section>
 
-      <section className="quiet-zone-v2" id="quiet-zone" ref={quietRef} data-specimen-root>
+      <section
+        className={`quiet-zone-v2 ${quietStatus === "reset" ? "is-disturbed" : ""}`}
+        id="quiet-zone"
+        ref={quietRef}
+        data-specimen-root
+      >
         <div className="quiet-zone__copy">
           <span className="section-index">FIELD BLIND · RESTRICTED OBSERVATION</span>
           <h2>Some things appear only when you stop looking for them.</h2>
-          <p>{secretVisible ? "The habitat remembers that you found it." : quietCopy[quietStage]}</p>
+          <p>{quietMessage}</p>
 
           <div className="quiet-meter" aria-label="Observation progress">
             {quietCopy.map((_, index) => (
@@ -465,9 +539,22 @@ export function FieldGuide() {
 
           <div className="quiet-rules">
             <span>NO SCROLL</span>
-            <span>NO POINTER</span>
+            <span>MICRO MOVEMENT OK</span>
             <span>NO KEYS</span>
-            <strong>{secretVisible ? "PRESENCE RECORDED" : "REMAIN STILL · 7.2 SEC"}</strong>
+            <strong>{secretVisible ? "PRESENCE RECORDED" : `POINTER TOLERANCE · ${QUIET_POINTER_TOLERANCE} PX`}</strong>
+          </div>
+
+          <div className="quiet-status" data-state={quietStatus} aria-live="polite">
+            <span>
+              {secretVisible
+                ? "Observation complete"
+                : quietStatus === "reset"
+                  ? "Movement detected · timer reset"
+                  : quietStatus === "waiting"
+                    ? "Enter the observation area"
+                    : "Holding observation…"}
+            </span>
+            <strong>{secretVisible ? "LOCKED" : `${quietRemaining.toFixed(1)} SEC`}</strong>
           </div>
         </div>
 
