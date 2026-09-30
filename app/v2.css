@@ -1,8 +1,8 @@
 .hero-story {
   width: min(calc(100% - 48px), var(--max));
-  height: 178vh;
-  min-height: 1320px;
-  margin: 0 auto 80px;
+  height: 158vh;
+  min-height: 1080px;
+  margin: 0 auto 24px;
   position: relative;
 }
 
@@ -14,7 +14,7 @@
   grid-template-columns: minmax(0, .82fr) minmax(560px, 1.18fr);
   gap: clamp(36px, 6vw, 96px);
   align-items: center;
-  padding: 58px 0 48px;
+  padding: 46px 0 38px;
 }
 
 .hero-story .hero-copy {
@@ -116,9 +116,9 @@
 }
 
 .specimen-card {
-  min-height: 720px;
-  padding: 82px 0;
-  row-gap: 24px;
+  min-height: 680px;
+  padding: 72px 0;
+  row-gap: 20px;
 }
 
 .specimen-card .specimen-art-wrap {
@@ -382,7 +382,8 @@
   }
 
   .hero-story {
-    height: 190vh;
+    height: 162vh;
+    min-height: 1120px;
   }
 
   .hero-stage {
@@ -394,7 +395,7 @@
   }
 
   .specimen-card {
-    min-height: 790px;
+    min-height: 720px;
   }
 }
 
@@ -524,4 +525,46 @@
   .hero-stage {
     position: relative;
   }
+}
+
+
+/* Motion/layout polish after V2 field test */
+.quiet-zone-v2.is-disturbed {
+  box-shadow: inset 0 0 0 1px rgba(184, 79, 61, .22);
+}
+
+.quiet-zone-v2.is-disturbed .quiet-observation-window {
+  animation: quiet-disturbance .34s ease;
+}
+
+.quiet-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 12px;
+  color: var(--ink-soft);
+  font: 700 9px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.quiet-status strong {
+  color: var(--red);
+  font-size: 10px;
+}
+
+.quiet-status[data-state="reset"] strong {
+  animation: quiet-flash .55s ease;
+}
+
+@keyframes quiet-disturbance {
+  0%, 100% { transform: translateX(0); }
+  35% { transform: translateX(-3px); }
+  70% { transform: translateX(3px); }
+}
+
+@keyframes quiet-flash {
+  0% { opacity: .25; }
+  100% { opacity: 1; }
 }
