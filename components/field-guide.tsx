@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AniDoodlePiece } from "@/components/anidoodle-piece";
+import { fieldGuideHero } from "@/art/pieces/hero";
 import { createSpecimenPiece, type SpecimenKind } from "@/art/pieces/specimens";
 
 const STORAGE_KEY = "tifg:discovered:v1";
+const LURKER_SEEN_KEY = "tifg:lurker-seen:v1";
 
 type Specimen = {
   id: string;
@@ -19,6 +21,8 @@ type Specimen = {
   note: string;
   kind: SpecimenKind;
   seed: number;
+  interactionHint: string;
+  marginNote: string;
 };
 
 const specimens: Specimen[] = [
@@ -35,6 +39,8 @@ const specimens: Specimen[] = [
     note: "Field observation: the tail is always one post farther away than expected.",
     kind: "scroller",
     seed: 1103,
+    interactionHint: "Move toward one of its posts.",
+    marginNote: "feeding appendages disguised as content cards",
   },
   {
     id: "notification-goblin",
@@ -43,12 +49,14 @@ const specimens: Specimen[] = [
     scientific: "Badgia compulsiva",
     epitaph: "Feeds on unread badges.",
     habitat: "Dock icons · inboxes · lock screens",
-    behaviour: "Multiplies when ignored",
+    behaviour: "Protects anything red and numbered",
     activity: "Every 4–7 minutes",
     threat: 2,
     note: "Do not make eye contact with the red circle. It interprets attention as food.",
     kind: "goblin",
     seed: 2207,
+    interactionHint: "Approach the 99+ badge slowly.",
+    marginNote: "specimen becomes territorial near high-value badges",
   },
   {
     id: "the-algorithm",
@@ -57,18 +65,20 @@ const specimens: Specimen[] = [
     scientific: "Machina obscura",
     epitaph: "Nobody has seen the whole creature.",
     habitat: "Recommendations · rankings · for-you pages",
-    behaviour: "Learns what you almost clicked",
+    behaviour: "Predicts where attention will move next",
     activity: "Continuous",
     threat: 4,
     note: "Specimens disagree on its actual shape. Each observer appears to receive a different animal.",
     kind: "algorithm",
     seed: 3301,
+    interactionHint: "Let it predict where your cursor is going.",
+    marginNote: "network topology changes when directly observed",
   },
 ];
 
 const lurker: Specimen = {
   id: "the-lurker",
-  number: "???",
+  number: "004",
   title: "The Lurker",
   scientific: "Spectator tacitus",
   epitaph: "Has been here the whole time.",
@@ -79,6 +89,8 @@ const lurker: Specimen = {
   note: "This specimen only appeared after the observer stopped trying to find it.",
   kind: "lurker",
   seed: 4409,
+  interactionHint: "Once found, move closer and watch it retreat.",
+  marginNote: "presence confirmed only after observer inactivity",
 };
 
 const pieces = Object.fromEntries(
@@ -125,7 +137,7 @@ function SpecimenCard({
 
   return (
     <article
-      className={`specimen-card ${observed ? "is-observed" : ""} ${secret ? "is-secret" : ""}`}
+      className={`specimen-card specimen-card--${specimen.kind} ${observed ? "is-observed" : ""} ${secret ? "is-secret" : ""}`}
       data-specimen-root
     >
       <div className="specimen-card__header">
@@ -139,7 +151,7 @@ function SpecimenCard({
         </span>
       </div>
 
-      <div className="specimen-art-wrap">
+      <div className="specimen-art-wrap" data-anidoodle="specimen-art">
         <AniDoodlePiece
           piece={pieces[specimen.id]}
           state={observed ? "observed" : "idle"}
@@ -147,14 +159,14 @@ function SpecimenCard({
           label={`Live field sketch of ${specimen.title}`}
         />
         <span className="sketch-note sketch-note--left" aria-hidden="true">
-          responds to movement
+          {specimen.interactionHint}
         </span>
         <span className="sketch-note sketch-note--right" aria-hidden="true">
-          do not tap glass
+          {specimen.marginNote}
         </span>
       </div>
 
-      <p className="epitaph">{specimen.epitaph}</p>
+      <blockquote className="epitaph">{specimen.epitaph}</blockquote>
 
       <div className="specimen-facts">
         <div>
@@ -182,7 +194,7 @@ function SpecimenCard({
         data-anidoodle={`observe-${specimen.id}`}
         aria-expanded={expanded}
       >
-        <span>{observed ? "Reopen field note" : "Observe specimen"}</span>
+        <span>{observed ? "Reopen field note" : "Log this specimen"}</span>
         <span aria-hidden="true">↗</span>
       </button>
 
@@ -195,47 +207,102 @@ function SpecimenCard({
   );
 }
 
+const quietStates = ["hidden", "trace", "eyes", "form", "revealed"] as const;
+const quietCopy = [
+  "Enter the blind and stop disturbing the habitat.",
+  "Something moved behind the paper grain.",
+  "Two reflective points. Do not approach.",
+  "Outline forming. Keep still.",
+  "Presence confirmed.",
+];
+
 export function FieldGuide() {
   const [discovered, setDiscovered] = useState<string[]>([]);
   const [secretVisible, setSecretVisible] = useState(false);
   const [secretAnnouncement, setSecretAnnouncement] = useState("");
+  const [quietVisible, setQuietVisible] = useState(false);
+  const [quietStage, setQuietStage] = useState(0);
+  const quietRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
       if (Array.isArray(stored)) {
         setDiscovered(stored.filter((id): id is string => typeof id === "string"));
-        if (stored.includes(lurker.id)) setSecretVisible(true);
+      }
+      if (localStorage.getItem(LURKER_SEEN_KEY) === "1" || stored?.includes?.(lurker.id)) {
+        setSecretVisible(true);
+        setQuietStage(4);
       }
     } catch {
-      // A field journal should keep working even if local storage is unavailable.
+      // The guide remains usable without persistence.
     }
   }, []);
 
   useEffect(() => {
-    if (secretVisible) return;
+    const node = quietRef.current;
+    if (!node) return;
 
-    let timer = window.setTimeout(() => {
-      setSecretVisible(true);
-      setSecretAnnouncement("A hidden specimen has appeared: The Lurker.");
-    }, 10000);
+    const observer = new IntersectionObserver(
+      ([entry]) => setQuietVisible(entry.isIntersecting && entry.intersectionRatio > 0.42),
+      { threshold: [0, 0.42, 0.65] },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
-    const reset = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        setSecretVisible(true);
-        setSecretAnnouncement("A hidden specimen has appeared: The Lurker.");
-      }, 10000);
+  useEffect(() => {
+    if (!quietVisible || secretVisible) return;
+
+    let timers: number[] = [];
+    let lastReset = 0;
+
+    const clear = () => {
+      timers.forEach((timer) => window.clearTimeout(timer));
+      timers = [];
     };
 
-    const events: Array<keyof WindowEventMap> = ["pointermove", "pointerdown", "keydown", "scroll"];
-    events.forEach((event) => window.addEventListener(event, reset, { passive: true }));
+    const schedule = () => {
+      clear();
+      setQuietStage(0);
+      timers = [
+        window.setTimeout(() => setQuietStage(1), 1400),
+        window.setTimeout(() => setQuietStage(2), 3200),
+        window.setTimeout(() => setQuietStage(3), 5100),
+        window.setTimeout(() => {
+          setQuietStage(4);
+          setSecretVisible(true);
+          setSecretAnnouncement("A hidden specimen has emerged: The Lurker.");
+          try {
+            localStorage.setItem(LURKER_SEEN_KEY, "1");
+          } catch {
+            // Persistence is enhancement-only.
+          }
+        }, 7200),
+      ];
+    };
+
+    const disturb = () => {
+      const now = performance.now();
+      if (now - lastReset < 160) return;
+      lastReset = now;
+      schedule();
+    };
+
+    schedule();
+    window.addEventListener("pointermove", disturb, { passive: true });
+    window.addEventListener("pointerdown", disturb, { passive: true });
+    window.addEventListener("keydown", disturb);
+    window.addEventListener("scroll", disturb, { passive: true });
 
     return () => {
-      window.clearTimeout(timer);
-      events.forEach((event) => window.removeEventListener(event, reset));
+      clear();
+      window.removeEventListener("pointermove", disturb);
+      window.removeEventListener("pointerdown", disturb);
+      window.removeEventListener("keydown", disturb);
+      window.removeEventListener("scroll", disturb);
     };
-  }, [secretVisible]);
+  }, [quietVisible, secretVisible]);
 
   const observed = useMemo(() => new Set(discovered), [discovered]);
 
@@ -254,6 +321,11 @@ export function FieldGuide() {
 
   const progress = observed.size;
   const total = 4;
+  const lurkerState = observed.has(lurker.id)
+    ? "observed"
+    : secretVisible
+      ? "revealed"
+      : quietStates[quietStage];
 
   return (
     <main id="field-guide">
@@ -272,55 +344,74 @@ export function FieldGuide() {
 
         <nav aria-label="Field guide navigation">
           <a href="#specimens">Specimens</a>
+          <a href="#quiet-zone">Field blind</a>
           <a href="#journal">Journal</a>
           <span className="journal-count">{String(progress).padStart(2, "0")}/{String(total).padStart(2, "0")}</span>
         </nav>
       </header>
 
-      <section className="hero" id="top" data-specimen-root>
-        <div className="hero-copy">
-          <div className="eyebrow-row">
-            <span>VOL. I · DIGITAL FAUNA</span>
-            <span>EST. 2026</span>
+      <section className="hero-story" id="hero-story">
+        <div className="hero-stage" id="top" data-specimen-root>
+          <div className="hero-copy">
+            <div className="eyebrow-row">
+              <span>VOL. I · DIGITAL FAUNA</span>
+              <span>EST. 2026</span>
+            </div>
+
+            <h1>
+              Strange creatures live
+              <span>between your tabs.</span>
+            </h1>
+
+            <p className="hero-intro">
+              A field guide to the habits, habitats and questionable survival strategies of the
+              things we meet every day on the internet.
+            </p>
+
+            <div className="hero-actions">
+              <a className="primary-link" href="#specimens" data-anidoodle="begin-expedition">
+                Begin expedition <span aria-hidden="true">↓</span>
+              </a>
+              <span className="hero-instruction">
+                Scroll slowly. You are holding the illustrator&apos;s hand.
+              </span>
+            </div>
+
+            <ol className="hero-process" aria-label="Illustration stages">
+              <li><span>01</span> construction</li>
+              <li><span>02</span> pencil</li>
+              <li><span>03</span> watercolour</li>
+              <li><span>04</span> final line</li>
+              <li><span>05</span> alive</li>
+            </ol>
           </div>
 
-          <h1>
-            Strange creatures live
-            <span>between your tabs.</span>
-          </h1>
-
-          <p className="hero-intro">
-            A field guide to the habits, habitats and questionable survival strategies of the
-            things we meet every day on the internet.
-          </p>
-
-          <div className="hero-actions">
-            <a className="primary-link" href="#specimens" data-anidoodle="begin-expedition">
-              Begin expedition <span aria-hidden="true">↓</span>
-            </a>
-            <span className="hero-instruction">Move carefully. Some specimens notice you.</span>
+          <div className="hero-plate" data-anidoodle="hero-plate">
+            <div className="plate-label plate-label--top">
+              PLATE 00 · INTERTAB LEPIDOPTERA · LIVE STUDY
+            </div>
+            <AniDoodlePiece
+              piece={fieldGuideHero}
+              state="observed"
+              scrollTrack="#hero-story"
+              className="hero-art"
+              label="The Intertab Moth being drawn into life as the page scrolls"
+            />
+            <div className="plate-caption">
+              <span>FIG. A</span>
+              <p>
+                Construction marks remain visible by design. After the final line dries, the
+                specimen begins tracking the observer.
+              </p>
+            </div>
+            <span className="plate-coordinate plate-coordinate--a">cursor-sensitive ocular pair</span>
+            <span className="plate-coordinate plate-coordinate--b">browser-tab mimicry</span>
           </div>
+
+          <span className="hero-margin-note" aria-hidden="true">
+            drawing process is the interface →
+          </span>
         </div>
-
-        <div className="hero-plate">
-          <div className="plate-label plate-label--top">
-            PLATE 01 · PRELIMINARY SIGHTING
-          </div>
-          <AniDoodlePiece
-            piece={pieces["infinite-scroller"]}
-            state={observed.has("infinite-scroller") ? "observed" : "idle"}
-            className="hero-art"
-            label="A live sketch from the Internet Field Guide"
-          />
-          <div className="plate-caption">
-            <span>FIG. A</span>
-            <p>Subject became aware of observer at approximately one cursor-length.</p>
-          </div>
-        </div>
-
-        <span className="hero-margin-note" aria-hidden="true">
-          not to scale →
-        </span>
       </section>
 
       <section className="field-preface">
@@ -331,7 +422,8 @@ export function FieldGuide() {
         </p>
         <aside>
           <strong>Observation protocol</strong>
-          Hover, click and linger. Your journal records the species you inspect.
+          Hover, click, linger and occasionally do absolutely nothing. The plates record how each
+          species responds.
         </aside>
       </section>
 
@@ -341,7 +433,10 @@ export function FieldGuide() {
             <span className="section-index">CATALOGUE · 01—03</span>
             <h2>Common sightings</h2>
           </div>
-          <p>Frequently observed in the wild. Approach with a charged battery and reasonable scepticism.</p>
+          <p>
+            These plates are alive. Each specimen has a different reflex; move across the
+            illustration rather than just reading around it.
+          </p>
         </div>
 
         <div className="specimen-list">
@@ -356,24 +451,49 @@ export function FieldGuide() {
         </div>
       </section>
 
-      <section className="quiet-zone">
-        <div>
-          <span className="section-index">OBSERVATION TIP</span>
-          <h2>Not every creature likes being chased.</h2>
+      <section className="quiet-zone-v2" id="quiet-zone" ref={quietRef} data-specimen-root>
+        <div className="quiet-zone__copy">
+          <span className="section-index">FIELD BLIND · RESTRICTED OBSERVATION</span>
+          <h2>Some things appear only when you stop looking for them.</h2>
+          <p>{secretVisible ? "The habitat remembers that you found it." : quietCopy[quietStage]}</p>
+
+          <div className="quiet-meter" aria-label="Observation progress">
+            {quietCopy.map((_, index) => (
+              <span key={index} className={index <= quietStage ? "is-active" : undefined} />
+            ))}
+          </div>
+
+          <div className="quiet-rules">
+            <span>NO SCROLL</span>
+            <span>NO POINTER</span>
+            <span>NO KEYS</span>
+            <strong>{secretVisible ? "PRESENCE RECORDED" : "REMAIN STILL · 7.2 SEC"}</strong>
+          </div>
         </div>
-        <p>
-          Field researchers report that one undocumented species appears only when the observer
-          stops moving long enough to become part of the scenery.
-        </p>
-        <span className="quiet-zone__timer" aria-hidden="true">··········</span>
+
+        <div className="quiet-observation-window">
+          <span className="quiet-window__label">LOW-LIGHT PLATE · UNCLASSIFIED</span>
+          <AniDoodlePiece
+            piece={pieces[lurker.id]}
+            state={lurkerState}
+            className="quiet-art"
+            label="A hidden creature gradually revealing itself while the observer remains still"
+          />
+          <div className="quiet-sighting-lines" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
+          </div>
+        </div>
       </section>
 
       {secretVisible && (
         <section className="secret-section" aria-label="Hidden specimen discovered">
           <div className="secret-ribbon">
-            <span>UNEXPECTED SIGHTING</span>
-            <span>UNEXPECTED SIGHTING</span>
-            <span>UNEXPECTED SIGHTING</span>
+            <span>UNEXPECTED SIGHTING · SPECIMEN 004</span>
+            <span>PRESENCE CONFIRMED</span>
+            <span>DO NOT STARTLE</span>
           </div>
           <SpecimenCard
             specimen={lurker}
@@ -396,11 +516,12 @@ export function FieldGuide() {
         <div className="journal-grid">
           {[...specimens, lurker].map((specimen) => {
             const isObserved = observed.has(specimen.id);
+            const visible = specimen.id !== lurker.id || secretVisible;
             return (
               <div className={`journal-stamp ${isObserved ? "is-found" : ""}`} key={specimen.id}>
-                <span>{isObserved ? specimen.number : "—"}</span>
-                <strong>{isObserved ? specimen.title : "Undocumented"}</strong>
-                <em>{isObserved ? "OBSERVED" : "NOT YET LOGGED"}</em>
+                <span>{isObserved ? specimen.number : visible ? specimen.number : "—"}</span>
+                <strong>{isObserved ? specimen.title : visible ? "Seen, not logged" : "Undocumented"}</strong>
+                <em>{isObserved ? "OBSERVED" : visible ? "SIGHTING ONLY" : "NOT YET LOGGED"}</em>
               </div>
             );
           })}
@@ -412,7 +533,7 @@ export function FieldGuide() {
           <strong>The Internet Field Guide</strong>
           <span>Vol. I · Digital Fauna</span>
         </div>
-        <p>Every creature on this page is drawn in code with AniDoodle.</p>
+        <p>Every live field plate is drawn in code with AniDoodle.</p>
         <a href="https://github.com/alexgreensh/anidoodle" target="_blank" rel="noreferrer">
           Study the drawing engine ↗
         </a>
