@@ -13,6 +13,7 @@ type AniDoodlePieceProps = {
   className?: string;
   label?: string;
   scrollTrack?: string;
+  onReady?: () => void;
 };
 
 export function AniDoodlePiece({
@@ -21,9 +22,15 @@ export function AniDoodlePiece({
   className,
   label,
   scrollTrack,
+  onReady,
 }: AniDoodlePieceProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<AniController | null>(null);
+  const onReadyRef = useRef(onReady);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
 
   useEffect(() => {
     let disposed = false;
@@ -53,6 +60,7 @@ export function AniDoodlePiece({
       );
 
       controllerRef.current = controller;
+      window.requestAnimationFrame(() => onReadyRef.current?.());
     }
 
     void boot();
