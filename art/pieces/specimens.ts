@@ -1,302 +1,423 @@
-import { rng } from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/core";
+import { rng, type P } from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/core";
 import type { Piece } from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/input";
 
 export type SpecimenKind = "scroller" | "goblin" | "algorithm" | "lurker";
 
-const W = 640;
-const H = 460;
+const W = 760;
+const H = 600;
 const PAPER = "#f3eddf";
-const PAPER_DARK = "#e7ddc9";
 const INK = "#252922";
-const INK_SOFT = "#697064";
-const RED = "#c95643";
-const MOSS = "#72806a";
-const BLUE = "#527987";
-const GOLD = "#b98a4b";
+const SOFT = "#687064";
+const RED = "#bd4f3c";
+const MOSS = "#71806a";
+const BLUE = "#5b8590";
+const GOLD = "#b28a50";
+const CREAM = "#fbf7ed";
 
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const clamp = (v: number, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 
-function roughPath(
-  ctx: CanvasRenderingContext2D,
-  points: [number, number][],
-  seed: number,
-  width = 2.2,
-  color = INK,
-  closed = false,
-) {
+function paper(ctx: CanvasRenderingContext2D, seed: number, tint = PAPER) {
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, W, H);
   const random = rng(seed);
-  ctx.beginPath();
-  points.forEach(([x, y], index) => {
-    const jx = (random() - 0.5) * 2.2;
-    const jy = (random() - 0.5) * 2.2;
-    if (index === 0) ctx.moveTo(x + jx, y + jy);
-    else ctx.lineTo(x + jx, y + jy);
-  });
-  if (closed) ctx.closePath();
+  ctx.save();
+  for (let i = 0; i < 260; i += 1) {
+    ctx.globalAlpha = 0.055 + random() * 0.08;
+    ctx.strokeStyle = random() > 0.82 ? "#6d6b5d" : "#baaF98";
+    ctx.lineWidth = 0.4;
+    const x = random() * W;
+    const y = random() * H;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 3 + random() * 9, y + (random() - 0.5) * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function rough(
+  ctx: CanvasRenderingContext2D,
+  points: P[],
+  seed: number,
+  width = 2,
+  color = INK,
+  alpha = 1,
+  close = false,
+) {
+  const r = rng(seed);
+  ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.strokeStyle = color;
   ctx.lineWidth = width;
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  ctx.beginPath();
+  points.forEach(([x, y], i) => {
+    const xx = x + (r() - 0.5) * 2.4;
+    const yy = y + (r() - 0.5) * 2.4;
+    if (i) ctx.lineTo(xx, yy);
+    else ctx.moveTo(xx, yy);
+  });
+  if (close) ctx.closePath();
   ctx.stroke();
+  ctx.restore();
 }
 
-function roughOval(
+function oval(cx: number, cy: number, rx: number, ry: number, n = 40): P[] {
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2;
+    return [cx + Math.cos(a) * rx, cy + Math.sin(a) * ry];
+  });
+}
+
+function wash(
   ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  rx: number,
-  ry: number,
+  points: P[],
+  color: string,
   seed: number,
-  color = INK,
-  fill?: string,
+  alpha = 0.26,
 ) {
-  const points: [number, number][] = [];
-  for (let i = 0; i <= 40; i += 1) {
-    const angle = (i / 40) * Math.PI * 2;
-    points.push([cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry]);
-  }
-  if (fill) {
+  const r = rng(seed);
+  for (let pass = 0; pass < 4; pass += 1) {
     ctx.save();
+    ctx.globalAlpha = alpha * (0.58 - pass * 0.08);
+    ctx.fillStyle = color;
     ctx.beginPath();
-    points.forEach(([x, y], index) => (index ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    points.forEach(([x, y], i) => {
+      const xx = x + (r() - 0.5) * 7;
+      const yy = y + (r() - 0.5) * 7;
+      if (i) ctx.lineTo(xx, yy);
+      else ctx.moveTo(xx, yy);
+    });
     ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.globalAlpha = 0.88;
     ctx.fill();
     ctx.restore();
   }
-  roughPath(ctx, points, seed, 2.2, color, true);
 }
 
-function paper(ctx: CanvasRenderingContext2D, seed: number) {
-  ctx.fillStyle = PAPER;
-  ctx.fillRect(0, 0, W, H);
-
-  const random = rng(seed);
+function hatch(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  seed: number,
+  amount = 18,
+  color = SOFT,
+) {
+  const r = rng(seed);
   ctx.save();
-  ctx.globalAlpha = 0.12;
-  for (let i = 0; i < 160; i += 1) {
-    const x = random() * W;
-    const y = random() * H;
-    const length = 2 + random() * 7;
-    ctx.strokeStyle = random() > 0.5 ? INK_SOFT : PAPER_DARK;
-    ctx.lineWidth = 0.45;
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 0.8;
+  for (let i = 0; i < amount; i += 1) {
+    const xx = x + r() * w;
+    const yy = y + r() * h;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + length, y + (random() - 0.5) * 2);
+    ctx.moveTo(xx - 8, yy + 10);
+    ctx.lineTo(xx + 9, yy - 9);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function eyes(
-  ctx: CanvasRenderingContext2D,
-  centres: [number, number][],
-  look: [number, number],
-  seed: number,
-) {
+function gaze(ctx: CanvasRenderingContext2D, centres: P[], look: P, seed: number, blink = 0) {
   centres.forEach(([x, y], index) => {
-    roughOval(ctx, x, y, 15, 12, seed + index * 13, INK, "#faf7ef");
+    ctx.save();
+    ctx.fillStyle = CREAM;
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 13, Math.max(1.7, 10 * (1 - blink)), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
     const dx = look[0] - x;
     const dy = look[1] - y;
     const d = Math.hypot(dx, dy) || 1;
-    const reach = clamp(d / 90, 0, 1) * 5;
-    const px = x + (dx / d) * reach;
-    const py = y + (dy / d) * reach;
+    const reach = Math.min(5, d / 80);
     ctx.fillStyle = INK;
     ctx.beginPath();
-    ctx.arc(px, py, 4.3, 0, Math.PI * 2);
+    ctx.arc(x + (dx / d) * reach, y + (dy / d) * reach, 3.6, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
+    if (index === 0) rough(ctx, [[x - 15, y - 18], [x, y - 22], [x + 14, y - 18]], seed + 10, 1.2, INK, 0.55);
   });
 }
 
-function observedMarks(ctx: CanvasRenderingContext2D, seed: number, active: boolean) {
-  if (!active) return;
-  const random = rng(seed);
+function stamp(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, rotation = -0.07) {
   ctx.save();
-  ctx.strokeStyle = GOLD;
-  ctx.fillStyle = GOLD;
-  ctx.globalAlpha = 0.78;
-  for (let i = 0; i < 9; i += 1) {
-    const angle = (i / 9) * Math.PI * 2;
-    const radius = 158 + random() * 28;
-    const x = W / 2 + Math.cos(angle) * radius;
-    const y = H / 2 + Math.sin(angle) * radius * 0.65;
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.strokeStyle = RED;
+  ctx.fillStyle = RED;
+  ctx.globalAlpha = 0.58;
+  ctx.lineWidth = 1.3;
+  ctx.strokeRect(-55, -15, 110, 30);
+  ctx.font = "700 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 0, 1);
+  ctx.restore();
+}
+
+function drawCard(ctx: CanvasRenderingContext2D, x: number, y: number, rot: number, seed: number, active = false) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = CREAM;
+  ctx.strokeStyle = active ? RED : INK;
+  ctx.lineWidth = active ? 2 : 1.3;
+  ctx.fillRect(-36, -25, 72, 50);
+  ctx.strokeRect(-36, -25, 72, 50);
+  rough(ctx, [[-24, -12], [19, -12]], seed, 1, SOFT, 0.6);
+  rough(ctx, [[-24, -2], [26, -2]], seed + 1, 1, SOFT, 0.5);
+  rough(ctx, [[-24, 9], [8, 9]], seed + 2, 1, SOFT, 0.45);
+  if (active) {
+    ctx.fillStyle = RED;
     ctx.beginPath();
-    ctx.moveTo(x - 5, y);
-    ctx.lineTo(x + 5, y);
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x, y + 5);
-    ctx.stroke();
+    ctx.arc(27, -18, 4, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
 
-function drawScroller(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  const body: [number, number][] = [
-    [118, 270],
-    [168, 214],
-    [240, 205],
-    [301, 243 + breath],
-    [372, 291],
-    [452, 280],
-    [514, 224],
-    [534, 168],
-  ];
+function scroller(ctx: CanvasRenderingContext2D, tick: number, look: P, state: string, seed: number) {
+  const t = tick / 60;
+  const observed = state === "observed";
+  const body: P[] = Array.from({ length: 54 }, (_, i) => {
+    const u = i / 53;
+    const x = 76 + u * 590;
+    const y = 344 + Math.sin(u * Math.PI * 3.1 + t * 0.42) * (66 - u * 18) - u * 82;
+    return [x, y];
+  });
 
   ctx.save();
-  ctx.globalAlpha = 0.16;
-  roughPath(ctx, body.map(([x, y]) => [x + 5, y + 8]), seed + 1, 22, MOSS);
+  ctx.globalAlpha = 0.14;
+  rough(ctx, body.map(([x, y]) => [x + 7, y + 10]), seed + 1, 32, MOSS);
   ctx.restore();
-
-  roughPath(ctx, body, seed + 2, 18, INK);
-  roughPath(ctx, body.map(([x, y]) => [x, y - 6]), seed + 3, 4, BLUE);
-
-  roughOval(ctx, 536, 159, 45, 36, seed + 4, INK, PAPER_DARK);
-  eyes(ctx, [[523, 154], [550, 151]], look, seed + 20);
+  rough(ctx, body, seed + 2, 24, INK, 0.92);
+  rough(ctx, body.map(([x, y]) => [x, y - 5]), seed + 3, 6, BLUE, 0.7);
 
   const cards = [
-    [182, 162, -8],
-    [294, 304, 5],
-    [410, 194, -5],
+    { i: 9, r: -0.14 }, { i: 18, r: 0.11 }, { i: 28, r: -0.09 },
+    { i: 38, r: 0.12 }, { i: 45, r: -0.06 },
+  ];
+  let nearest = -1;
+  let best = Infinity;
+  cards.forEach(({ i }, index) => {
+    const [x, y] = body[i];
+    const d = Math.hypot(look[0] - x, look[1] - y);
+    if (d < best) {
+      best = d;
+      nearest = index;
+    }
+  });
+  cards.forEach(({ i, r }, index) => {
+    const [x, y] = body[i];
+    drawCard(ctx, x, y - 47, r + Math.sin(t + index) * 0.015, seed + 40 + index * 4, best < 130 && index === nearest);
+  });
+
+  const head = body.at(-1)!;
+  const headY = head[1] - (observed ? 15 : 0);
+  wash(ctx, oval(head[0], headY, 63, 49), GOLD, seed + 70, 0.22);
+  rough(ctx, oval(head[0], headY, 63, 49), seed + 71, 2.6, INK, 1, true);
+  rough(ctx, [[head[0] + 28, headY - 36], [head[0] + 51, headY - 74], [head[0] + 70, headY - 81]], seed + 72, 2, INK);
+  rough(ctx, [[head[0] - 24, headY - 39], [head[0] - 40, headY - 72], [head[0] - 57, headY - 82]], seed + 73, 2, INK);
+  const blink = Math.max(0, 1 - Math.abs(Math.sin(t * 0.66)) * 18);
+  gaze(ctx, [[head[0] - 21, headY - 4], [head[0] + 17, headY - 7]], look, seed + 80, blink);
+
+  if (best < 150) {
+    const targetCard = cards[nearest];
+    const target = body[targetCard.i];
+    rough(ctx, [[head[0] - 8, headY + 28], [head[0] - 25, headY + 40], [target[0] + 5, target[1] - 42]], seed + 90, 2.3, RED, 0.8);
+  }
+
+  hatch(ctx, 250, 250, 270, 160, seed + 100, 36);
+  if (observed) stamp(ctx, "FEED RESPONSE", 125, 112, -0.06);
+}
+
+function goblin(ctx: CanvasRenderingContext2D, tick: number, look: P, state: string, seed: number) {
+  const t = tick / 60;
+  const observed = state === "observed";
+  const pulse = 1 + Math.sin(t * 3.2) * 0.05;
+  const badge = [535, 152] as P;
+  const nearBadge = Math.hypot(look[0] - badge[0], look[1] - badge[1]) < 150;
+  const bob = Math.sin(t * 1.3) * 3;
+
+  wash(ctx, oval(356, 330 + bob, 126, 145), MOSS, seed + 1, 0.24);
+  rough(ctx, oval(356, 330 + bob, 126, 145), seed + 2, 2.8, INK, 1, true);
+  wash(ctx, [[247, 279], [178, 203], [270, 226]], GOLD, seed + 3, 0.2);
+  wash(ctx, [[465, 279], [536, 203], [442, 226]], GOLD, seed + 4, 0.2);
+  rough(ctx, [[247, 279], [178, 203], [270, 226]], seed + 5, 2.4, INK, 1, true);
+  rough(ctx, [[465, 279], [536, 203], [442, 226]], seed + 6, 2.4, INK, 1, true);
+
+  gaze(ctx, [[319, 304 + bob], [392, 304 + bob]], look, seed + 20, 0);
+  rough(ctx, [[315, 374 + bob], [356, 389 + bob], [401, 370 + bob]], seed + 21, 2.2, INK);
+  rough(ctx, [[355, 330 + bob], [345, 348 + bob], [363, 351 + bob]], seed + 22, 1.4, SOFT);
+
+  const notifications = [
+    [120, 136, 11, "3"], [196, 101, 15, "12"], [617, 241, 12, "7"],
+    [567, 403, 17, "28"], [169, 433, 13, "5"], [535, 152, 31, "99+"],
   ] as const;
 
-  cards.forEach(([x, y, rotation], index) => {
+  notifications.forEach(([x, y, r, label], i) => {
+    const scale = i === 5 ? pulse : 1 + Math.sin(t * 2 + i) * 0.025;
     ctx.save();
     ctx.translate(x, y);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.fillStyle = "#f9f5eb";
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.fillRect(-31, -22, 62, 44);
-    ctx.strokeRect(-31, -22, 62, 44);
-    roughPath(ctx, [[-21, -10], [18, -10]], seed + 50 + index, 1.6, INK_SOFT);
-    roughPath(ctx, [[-21, 0], [23, 0]], seed + 60 + index, 1.6, INK_SOFT);
-    roughPath(ctx, [[-21, 10], [8, 10]], seed + 70 + index, 1.6, INK_SOFT);
+    ctx.scale(scale, scale);
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = i === 5 ? RED : i % 2 ? GOLD : BLUE;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fffaf1";
+    ctx.font = `700 ${Math.max(9, r * 0.55)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, 0, 1);
     ctx.restore();
   });
 
-  observedMarks(ctx, seed + 90, observed);
+  const leftHand: P = nearBadge ? [494, 176] : [226, 372 + bob];
+  const rightHand: P = nearBadge ? [561, 184] : [485, 366 + bob];
+  rough(ctx, [[276, 356 + bob], [250, 360 + bob], leftHand], seed + 50, 8, INK, 0.9);
+  rough(ctx, [[438, 356 + bob], [472, 350 + bob], rightHand], seed + 51, 8, INK, 0.9);
+  rough(ctx, oval(leftHand[0], leftHand[1], 11, 9), seed + 52, 1.7, INK, 1, true);
+  rough(ctx, oval(rightHand[0], rightHand[1], 11, 9), seed + 53, 1.7, INK, 1, true);
+
+  if (nearBadge) {
+    rough(ctx, [[500, 114], [535, 92], [568, 111]], seed + 70, 1.5, RED, 0.65);
+    ctx.save();
+    ctx.fillStyle = RED;
+    ctx.font = "italic 14px Georgia, serif";
+    ctx.fillText("mine.", 574, 120);
+    ctx.restore();
+  }
+
+  hatch(ctx, 270, 240, 170, 240, seed + 80, 28);
+  if (observed) stamp(ctx, "STIMULUS HOARDER", 129, 520, 0.04);
 }
 
-function drawGoblin(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  roughOval(ctx, 320, 244 + breath, 104, 116, seed + 1, INK, "#dfe4cf");
+function algorithm(ctx: CanvasRenderingContext2D, tick: number, look: P, state: string, seed: number) {
+  const t = tick / 60;
+  const observed = state === "observed";
+  const centre: P = [380, 300];
+  const nodes = Array.from({ length: 18 }, (_, i) => {
+    const ring = i % 3;
+    const baseR = 120 + ring * 62;
+    const angle = (i / 18) * Math.PI * 2 + ring * 0.7 + t * (0.03 + ring * 0.012);
+    let x = centre[0] + Math.cos(angle) * baseR;
+    let y = centre[1] + Math.sin(angle) * baseR * 0.68;
+    const d = Math.hypot(look[0] - x, look[1] - y);
+    if (d < 190) {
+      const k = (190 - d) / 190;
+      x += (look[0] - x) * 0.14 * k;
+      y += (look[1] - y) * 0.14 * k;
+    }
+    return [x, y] as P;
+  });
 
-  roughPath(ctx, [[231, 193], [180, 150], [236, 146]], seed + 2, 3, INK);
-  roughPath(ctx, [[409, 193], [462, 150], [404, 146]], seed + 3, 3, INK);
-
-  eyes(ctx, [[286, 225 + breath], [350, 225 + breath]], look, seed + 20);
-
-  roughPath(ctx, [[284, 285], [320, 300], [357, 283]], seed + 30, 2.3, INK);
-  roughPath(ctx, [[220, 281], [154, 324], [116, 300]], seed + 31, 5.5, INK);
-  roughPath(ctx, [[417, 281], [482, 324], [523, 296]], seed + 32, 5.5, INK);
-
-  roughOval(ctx, 432, 139, 43, 43, seed + 40, RED, RED);
+  const random = rng(seed + 200);
   ctx.save();
-  ctx.fillStyle = "#fff9ef";
-  ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("99+", 432, 140);
+  ctx.globalAlpha = 0.24;
+  ctx.strokeStyle = BLUE;
+  ctx.lineWidth = 1.1;
+  for (let i = 0; i < nodes.length; i += 1) {
+    const targets = [(i * 5 + 3) % nodes.length, (i * 7 + 8) % nodes.length];
+    targets.forEach((j) => {
+      ctx.beginPath();
+      ctx.moveTo(nodes[i][0], nodes[i][1]);
+      ctx.quadraticCurveTo(
+        centre[0] + (random() - 0.5) * 120,
+        centre[1] + (random() - 0.5) * 90,
+        nodes[j][0],
+        nodes[j][1],
+      );
+      ctx.stroke();
+    });
+  }
   ctx.restore();
 
-  roughPath(ctx, [[313, 128], [320, 89], [329, 127]], seed + 41, 2, INK);
-  roughOval(ctx, 320, 80, 9, 9, seed + 42, INK, GOLD);
+  nodes.forEach(([x, y], i) => {
+    const r = 7 + (i % 4) * 2.5;
+    wash(ctx, oval(x, y, r * 1.5, r * 1.2), i % 3 === 0 ? RED : BLUE, seed + 300 + i, 0.18);
+    rough(ctx, oval(x, y, r, r * 0.85), seed + 400 + i, 1.1, INK, 0.75, true);
+  });
 
-  observedMarks(ctx, seed + 90, observed);
+  wash(ctx, oval(centre[0], centre[1], 78, 68), GOLD, seed + 501, 0.18);
+  rough(ctx, oval(centre[0], centre[1], 78, 68), seed + 502, 2.4, INK, 1, true);
+  rough(ctx, oval(centre[0], centre[1], 42, 36), seed + 503, 1.4, BLUE, 0.55, true);
+  gaze(ctx, [[380, 298]], look, seed + 510, 0);
+
+  const dx = look[0] - centre[0];
+  const dy = look[1] - centre[1];
+  const prediction: P = [centre[0] + dx * 0.72, centre[1] + dy * 0.72];
+  ctx.save();
+  ctx.strokeStyle = RED;
+  ctx.globalAlpha = observed ? 0.75 : 0.34;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.moveTo(centre[0], centre[1]);
+  ctx.lineTo(prediction[0], prediction[1]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.strokeRect(prediction[0] - 18, prediction[1] - 13, 36, 26);
+  ctx.fillStyle = RED;
+  ctx.font = "9px ui-monospace, SFMono-Regular, Menlo, monospace";
+  ctx.fillText("LIKELY NEXT", prediction[0] + 24, prediction[1] - 4);
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = SOFT;
+  ctx.globalAlpha = 0.55;
+  ctx.font = "italic 15px Georgia, serif";
+  ctx.fillText("you may also like", 326, 414);
+  ctx.restore();
+
+  if (observed) stamp(ctx, "MODEL UPDATED", 600, 514, -0.04);
 }
 
-function drawAlgorithm(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  const random = rng(seed + 100);
-  const nodes: [number, number, number][] = Array.from({ length: 11 }, (_, index) => {
-    const angle = (index / 11) * Math.PI * 2 + 0.2;
-    const radius = index % 2 ? 132 : 164;
-    return [
-      320 + Math.cos(angle) * radius,
-      232 + Math.sin(angle) * radius * 0.72 + breath,
-      15 + random() * 18,
-    ];
-  });
+function lurker(ctx: CanvasRenderingContext2D, tick: number, look: P, state: string, seed: number) {
+  const t = tick / 60;
+  const level =
+    state === "observed" || state === "revealed" ? 1 :
+    state === "form" ? 0.72 :
+    state === "eyes" ? 0.46 :
+    state === "trace" ? 0.22 : 0.04;
 
+  const hide = state === "observed" && Math.hypot(look[0] - 380, look[1] - 282) < 135 ? 26 : 0;
   ctx.save();
-  ctx.globalAlpha = 0.66;
-  nodes.forEach(([x, y], index) => {
-    const target = nodes[(index * 3 + 4) % nodes.length];
-    roughPath(ctx, [[x, y], [320 + (random() - 0.5) * 52, 232 + (random() - 0.5) * 36], [target[0], target[1]]], seed + index * 9, 1.4, BLUE);
-  });
+  ctx.globalAlpha = 0.08 + level * 0.15;
+  wash(ctx, oval(380 + hide, 320, 132, 177), INK, seed + 1, 0.28 * level);
   ctx.restore();
 
-  nodes.forEach(([x, y, r], index) => roughOval(ctx, x, y, r, r * 0.78, seed + 220 + index, INK, index % 3 === 0 ? "#dce5e2" : PAPER));
+  if (level > 0.15) {
+    rough(ctx, [[255 + hide, 489], [270 + hide, 250], [325 + hide, 159], [428 + hide, 160], [494 + hide, 252], [510 + hide, 490]], seed + 2, 2.6, INK, level * 0.85);
+    rough(ctx, [[270 + hide, 250], [380 + hide, 216 + Math.sin(t) * 2], [494 + hide, 252]], seed + 3, 2, INK, level * 0.78);
+  }
 
-  roughOval(ctx, 320, 232 + breath, 76, 66, seed + 300, INK, "#e8dfca");
-  eyes(ctx, [[320, 228 + breath]], look, seed + 320);
+  if (level > 0.36) {
+    gaze(ctx, [[347 + hide, 286], [414 + hide, 286]], look, seed + 10, 0);
+  }
 
-  ctx.save();
-  ctx.font = "italic 16px Georgia, serif";
-  ctx.fillStyle = INK_SOFT;
-  ctx.textAlign = "center";
-  ctx.fillText("you may also like", 320, 336);
-  ctx.restore();
+  if (level > 0.58) {
+    rough(ctx, [[328 + hide, 350], [380 + hide, 360], [434 + hide, 348]], seed + 20, 1.5, INK, level);
+    hatch(ctx, 287 + hide, 230, 186, 240, seed + 30, 48, INK);
+    const boxes = [[146, 135], [609, 192], [154, 436], [622, 437]] as const;
+    boxes.forEach(([x, y], i) => {
+      ctx.save();
+      ctx.globalAlpha = level * 0.32;
+      ctx.strokeStyle = SOFT;
+      ctx.strokeRect(x - 43, y - 23, 86, 46);
+      rough(ctx, [[x - 29, y - 7], [x + 25, y - 7]], seed + 50 + i, 1, SOFT, 0.55);
+      rough(ctx, [[x - 29, y + 5], [x + 10, y + 5]], seed + 60 + i, 1, SOFT, 0.45);
+      ctx.restore();
+    });
+  }
 
-  observedMarks(ctx, seed + 390, observed);
-}
-
-function drawLurker(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  ctx.save();
-  ctx.globalAlpha = 0.2;
-  roughOval(ctx, 320, 244, 132, 150, seed + 1, INK, INK);
-  ctx.restore();
-
-  roughPath(
-    ctx,
-    [[214, 338], [226, 188], [286, 112], [356, 111], [414, 188], [430, 339]],
-    seed + 4,
-    4,
-    INK,
-  );
-  roughPath(ctx, [[226, 188], [320, 167 + breath], [414, 188]], seed + 5, 3, INK);
-
-  eyes(ctx, [[294, 217 + breath], [347, 217 + breath]], look, seed + 20);
-
-  ctx.save();
-  ctx.globalAlpha = 0.38;
-  [
-    [143, 125, 62, 30],
-    [475, 273, 74, 34],
-    [132, 330, 52, 27],
-  ].forEach(([x, y, w, h], index) => {
-    ctx.strokeStyle = INK_SOFT;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-    roughPath(ctx, [[x - w / 2 + 8, y], [x + w / 2 - 8, y]], seed + 40 + index, 1.2, INK_SOFT);
-  });
-  ctx.restore();
-
-  observedMarks(ctx, seed + 90, observed);
+  if (level > 0.9) {
+    stamp(ctx, hide ? "RETREATING" : "PRESENCE CONFIRMED", 565, 86, 0.05);
+  }
 }
 
 export function createSpecimenPiece(
@@ -306,18 +427,12 @@ export function createSpecimenPiece(
   seed: number,
 ): Piece {
   return {
-    meta: {
-      title,
-      W,
-      H,
-      loop: 240,
-      alt,
-    },
+    meta: { title, W, H, loop: 360, alt },
     input: {
       springs: {
         look: {
-          omega: 0.13,
-          target: (state) => state.pointer ?? [W * 0.58, H * 0.38],
+          omega: 0.16,
+          target: (d) => d.pointer ?? [W * 0.62, H * 0.36],
         },
       },
     },
@@ -325,23 +440,19 @@ export function createSpecimenPiece(
       ctx.setTransform(env.scale, 0, 0, env.scale, 0, 0);
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = "source-over";
-      paper(ctx, seed);
+      paper(ctx, seed, kind === "algorithm" ? "#efe9db" : PAPER);
+      const look = state.spring.look as P;
 
-      const phase = ((tick % 240) / 240) * Math.PI * 2;
-      const breath = state.reduced ? 0 : Math.sin(phase) * 2.8;
-      const look = state.spring.look as [number, number];
-      const observed = state.state === "observed";
-
-      if (kind === "scroller") drawScroller(ctx, look, breath, seed, observed);
-      if (kind === "goblin") drawGoblin(ctx, look, breath, seed, observed);
-      if (kind === "algorithm") drawAlgorithm(ctx, look, breath, seed, observed);
-      if (kind === "lurker") drawLurker(ctx, look, breath, seed, observed);
+      if (kind === "scroller") scroller(ctx, tick, look, state.state, seed);
+      if (kind === "goblin") goblin(ctx, tick, look, state.state, seed);
+      if (kind === "algorithm") algorithm(ctx, tick, look, state.state, seed);
+      if (kind === "lurker") lurker(ctx, tick, look, state.state, seed);
 
       ctx.save();
-      ctx.fillStyle = INK_SOFT;
-      ctx.globalAlpha = 0.58;
-      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText("FIELD SKETCH · LIVE SPECIMEN", 22, H - 22);
+      ctx.fillStyle = SOFT;
+      ctx.globalAlpha = 0.5;
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText("LIVE FIELD PLATE · MOVE CURSOR ACROSS SPECIMEN", 22, H - 22);
       ctx.restore();
     },
   };
