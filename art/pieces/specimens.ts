@@ -1,302 +1,369 @@
-import { rng } from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/core";
+import {
+  Gfx,
+  PENCIL,
+  TINT,
+  arc,
+  line,
+  oval,
+  rng,
+  tube,
+  type Ctx,
+  type P,
+} from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/core";
 import type { Piece } from "../../.anidoodle/repo/skills/anidoodle/engine/src/canvas-core/input";
 
 export type SpecimenKind = "scroller" | "goblin" | "algorithm" | "lurker";
 
-const W = 640;
-const H = 460;
-const PAPER = "#f3eddf";
-const PAPER_DARK = "#e7ddc9";
-const INK = "#252922";
-const INK_SOFT = "#697064";
-const RED = "#c95643";
-const MOSS = "#72806a";
-const BLUE = "#527987";
-const GOLD = "#b98a4b";
+const W = 700;
+const H = 520;
+const PAPER = "#f5eedf";
+const INK = "#2e312b";
+const PENCIL_BLUE = "#8d94a1";
+const RED = "#bb513f";
+const MOSS = "#6f8068";
+const BLUE = "#658f9a";
+const GOLD = "#cfaa61";
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+const at = (o: P, pts: P[]): P[] => pts.map(([x, y]) => [o[0] + x, o[1] + y]);
 
-function roughPath(
-  ctx: CanvasRenderingContext2D,
-  points: [number, number][],
-  seed: number,
-  width = 2.2,
-  color = INK,
-  closed = false,
-) {
-  const random = rng(seed);
-  ctx.beginPath();
-  points.forEach(([x, y], index) => {
-    const jx = (random() - 0.5) * 2.2;
-    const jy = (random() - 0.5) * 2.2;
-    if (index === 0) ctx.moveTo(x + jx, y + jy);
-    else ctx.lineTo(x + jx, y + jy);
-  });
-  if (closed) ctx.closePath();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = width;
-  ctx.lineCap = "round";
-  ctx.lineJoin = "round";
-  ctx.stroke();
-}
-
-function roughOval(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  rx: number,
-  ry: number,
-  seed: number,
-  color = INK,
-  fill?: string,
-) {
-  const points: [number, number][] = [];
-  for (let i = 0; i <= 40; i += 1) {
-    const angle = (i / 40) * Math.PI * 2;
-    points.push([cx + Math.cos(angle) * rx, cy + Math.sin(angle) * ry]);
-  }
-  if (fill) {
-    ctx.save();
-    ctx.beginPath();
-    points.forEach(([x, y], index) => (index ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.closePath();
-    ctx.fillStyle = fill;
-    ctx.globalAlpha = 0.88;
-    ctx.fill();
-    ctx.restore();
-  }
-  roughPath(ctx, points, seed, 2.2, color, true);
-}
-
-function paper(ctx: CanvasRenderingContext2D, seed: number) {
+function paper(ctx: Ctx, seed: number) {
+  ctx.save();
   ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, W, H);
-
-  const random = rng(seed);
-  ctx.save();
-  ctx.globalAlpha = 0.12;
-  for (let i = 0; i < 160; i += 1) {
-    const x = random() * W;
-    const y = random() * H;
-    const length = 2 + random() * 7;
-    ctx.strokeStyle = random() > 0.5 ? INK_SOFT : PAPER_DARK;
+  const r = rng(seed);
+  ctx.globalAlpha = 0.1;
+  for (let i = 0; i < 150; i++) {
+    const x = r() * W;
+    const y = r() * H;
+    ctx.strokeStyle = r() > 0.5 ? "#6f6a5f" : "#fff";
     ctx.lineWidth = 0.45;
     ctx.beginPath();
     ctx.moveTo(x, y);
-    ctx.lineTo(x + length, y + (random() - 0.5) * 2);
+    ctx.lineTo(x + 3 + r() * 7, y + (r() - 0.5) * 1.4);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-function eyes(
-  ctx: CanvasRenderingContext2D,
-  centres: [number, number][],
-  look: [number, number],
-  seed: number,
-) {
-  centres.forEach(([x, y], index) => {
-    roughOval(ctx, x, y, 15, 12, seed + index * 13, INK, "#faf7ef");
-    const dx = look[0] - x;
-    const dy = look[1] - y;
-    const d = Math.hypot(dx, dy) || 1;
-    const reach = clamp(d / 90, 0, 1) * 5;
-    const px = x + (dx / d) * reach;
-    const py = y + (dy / d) * reach;
-    ctx.fillStyle = INK;
-    ctx.beginPath();
-    ctx.arc(px, py, 4.3, 0, Math.PI * 2);
-    ctx.fill();
+function eye(g: Gfx, x: number, y: number, target: P, seed: number, scale = 1) {
+  const dx = target[0] - x;
+  const dy = target[1] - y;
+  const d = Math.hypot(dx, dy) || 1;
+  const px = (dx / d) * Math.min(5.5 * scale, d / 75);
+  const py = (dy / d) * Math.min(4.2 * scale, d / 90);
+
+  g.group("paint", () => {
+    g.wash(oval(x, y, 15 * scale, 12 * scale, 9), "#fffaf1", {
+      alpha: 0.98,
+      seed,
+      dx: 0,
+      dy: 0,
+      shrink: 1,
+      rim: false,
+    });
+  });
+  g.group("ink", () => {
+    g.pen(oval(x, y, 15 * scale, 12 * scale, 9), {
+      closed: true,
+      w: 1.9 * scale,
+      seed: seed + 1,
+      wobble: 0.4,
+      retrace: false,
+    });
+    const c = g.cur;
+    c.fillStyle = INK;
+    c.beginPath();
+    c.arc(x + px, y + py, 4.1 * scale, 0, Math.PI * 2);
+    c.fill();
   });
 }
 
-function observedMarks(ctx: CanvasRenderingContext2D, seed: number, active: boolean) {
+function observationMarks(g: Gfx, seed: number, active: boolean) {
   if (!active) return;
-  const random = rng(seed);
-  ctx.save();
-  ctx.strokeStyle = GOLD;
-  ctx.fillStyle = GOLD;
-  ctx.globalAlpha = 0.78;
-  for (let i = 0; i < 9; i += 1) {
-    const angle = (i / 9) * Math.PI * 2;
-    const radius = 158 + random() * 28;
-    const x = W / 2 + Math.cos(angle) * radius;
-    const y = H / 2 + Math.sin(angle) * radius * 0.65;
-    ctx.beginPath();
-    ctx.moveTo(x - 5, y);
-    ctx.lineTo(x + 5, y);
-    ctx.moveTo(x, y - 5);
-    ctx.lineTo(x, y + 5);
-    ctx.stroke();
-  }
-  ctx.restore();
+  const r = rng(seed);
+  g.group("ink", () => {
+    for (let i = 0; i < 13; i++) {
+      const a = (i / 13) * Math.PI * 2;
+      const rr = 235 + r() * 30;
+      const x = W / 2 + Math.cos(a) * rr;
+      const y = H / 2 + Math.sin(a) * rr * 0.72;
+      g.pen(line([x - 7, y], [x + 7, y]), { w: 1.4, color: GOLD, seed: seed + i, retrace: false });
+      g.pen(line([x, y - 7], [x, y + 7]), { w: 1.4, color: GOLD, seed: seed + 30 + i, retrace: false });
+    }
+  });
 }
 
-function drawScroller(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  const body: [number, number][] = [
-    [118, 270],
-    [168, 214],
-    [240, 205],
-    [301, 243 + breath],
-    [372, 291],
-    [452, 280],
-    [514, 224],
-    [534, 168],
+function feedCard(g: Gfx, x: number, y: number, rot: number, seed: number, accent = BLUE) {
+  const card: P[] = [[-42, -31], [39, -31], [46, -24], [46, 27], [39, 34], [-39, 34], [-46, 27], [-46, -24]];
+  g.push(x, y, 1, rot);
+  g.group("paint", () => {
+    g.form(card, "#fbf8ee", "#d8cfbd", { seed, light: [-3, -4] });
+    g.wash(oval(-29, -18, 5, 5, 7), accent, { alpha: 0.75, seed: seed + 1, dx: 0, dy: 0, shrink: 1, rim: false });
+  });
+  g.group("ink", () => {
+    g.pen(card, { closed: true, w: 2.2, seed: seed + 2, wobble: 0.5 });
+    g.pen([[-19, -17], [27, -17]], { w: 1.4, seed: seed + 3, opacity: 0.55, retrace: false });
+    g.pen([[-28, -3], [28, -3]], { w: 1.35, seed: seed + 4, opacity: 0.45, retrace: false });
+    g.pen([[-28, 10], [9, 10]], { w: 1.35, seed: seed + 5, opacity: 0.4, retrace: false });
+  });
+  g.pop();
+}
+
+function drawScroller(g: Gfx, tick: number, look: P, active: boolean) {
+  const sway = Math.sin(tick * 0.026) * 7;
+  const reach = active ? 16 + Math.sin(tick * 0.04) * 9 : 0;
+  const spine: P[] = [
+    [108, 334],
+    [164, 283],
+    [235, 287],
+    [302, 324],
+    [372, 382],
+    [446, 396],
+    [512, 363],
+    [553, 304],
+    [576 + reach, 242 + sway * 0.3],
+    [564 + reach, 191 + sway * 0.2],
   ];
+  const body = tube(spine, 35, 23, true);
 
-  ctx.save();
-  ctx.globalAlpha = 0.16;
-  roughPath(ctx, body.map(([x, y]) => [x + 5, y + 8]), seed + 1, 22, MOSS);
-  ctx.restore();
-
-  roughPath(ctx, body, seed + 2, 18, INK);
-  roughPath(ctx, body.map(([x, y]) => [x, y - 6]), seed + 3, 4, BLUE);
-
-  roughOval(ctx, 536, 159, 45, 36, seed + 4, INK, PAPER_DARK);
-  eyes(ctx, [[523, 154], [550, 151]], look, seed + 20);
-
-  const cards = [
-    [182, 162, -8],
-    [294, 304, 5],
-    [410, 194, -5],
-  ] as const;
-
-  cards.forEach(([x, y, rotation], index) => {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate((rotation * Math.PI) / 180);
-    ctx.fillStyle = "#f9f5eb";
-    ctx.strokeStyle = INK;
-    ctx.lineWidth = 2;
-    ctx.fillRect(-31, -22, 62, 44);
-    ctx.strokeRect(-31, -22, 62, 44);
-    roughPath(ctx, [[-21, -10], [18, -10]], seed + 50 + index, 1.6, INK_SOFT);
-    roughPath(ctx, [[-21, 0], [23, 0]], seed + 60 + index, 1.6, INK_SOFT);
-    roughPath(ctx, [[-21, 10], [8, 10]], seed + 70 + index, 1.6, INK_SOFT);
-    ctx.restore();
+  g.group("paint", () => {
+    g.wash(body, "#9bae8e", { alpha: 0.55, seed: 100, dx: 4, dy: 2, shrink: 0.97, rim: true });
+    g.wash(oval(351, 349, 180, 72, 14), "#7b9fa9", { alpha: 0.13, seed: 101, dx: 2, dy: 1, shrink: 0.98, rim: true });
   });
 
-  observedMarks(ctx, seed + 90, observed);
+  g.group("ink", () => {
+    g.pen(body, { closed: true, w: 3.4, seed: 110, wobble: 1.1, boil: 0.4, taper: 0.5 });
+    g.pen(spine, { w: 1.7, color: PENCIL_BLUE, seed: 111, opacity: 0.34, wobble: 1.2, retrace: false });
+    g.hatch(332, 352, 230, { n: 20, len: 17, angle: -0.65, seed: 112, opacity: 0.18 });
+  });
+
+  feedCard(g, 202, 236, -0.12, 130);
+  feedCard(g, 365, 443, 0.08, 140, RED);
+  feedCard(g, 512, 307, -0.05, 150, GOLD);
+
+  const headY = 178 + sway * 0.45;
+  const head: P[] = [[-59, -31], [-41, -52], [-9, -61], [27, -57], [52, -40], [60, -7], [51, 27], [20, 47], [-19, 48], [-47, 30], [-60, 2]];
+  g.push(565 + reach, headY, 1, -0.06 + Math.sin(tick * 0.02) * 0.015);
+  g.group("paint", () => g.form(head, "#e6dbc6", "#aa9d88", { seed: 160, light: [-8, -9], hi: [-25, -23, 12, 7, -28] }));
+  g.group("ink", () => {
+    g.pen(head, { closed: true, w: 3.4, seed: 161, wobble: 0.9, boil: 0.35 });
+    g.pen(arc(0, 21, 11, 7, 0.1 * Math.PI, 0.9 * Math.PI, 6), { w: 2.2, seed: 162 });
+  });
+  eye(g, -19, -9, [look[0] - (565 + reach), look[1] - headY], 170);
+  eye(g, 18, -11, [look[0] - (565 + reach), look[1] - headY], 180);
+  g.pop();
+
+  if (active) {
+    g.group("ink", () => {
+      g.pen([[598, 132], [617, 116], [632, 121]], { w: 1.5, color: RED, seed: 195, retrace: false });
+      g.pen([[595, 145], [620, 140]], { w: 1.5, color: RED, seed: 196, retrace: false });
+    });
+  }
 }
 
-function drawGoblin(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  roughOval(ctx, 320, 244 + breath, 104, 116, seed + 1, INK, "#dfe4cf");
-
-  roughPath(ctx, [[231, 193], [180, 150], [236, 146]], seed + 2, 3, INK);
-  roughPath(ctx, [[409, 193], [462, 150], [404, 146]], seed + 3, 3, INK);
-
-  eyes(ctx, [[286, 225 + breath], [350, 225 + breath]], look, seed + 20);
-
-  roughPath(ctx, [[284, 285], [320, 300], [357, 283]], seed + 30, 2.3, INK);
-  roughPath(ctx, [[220, 281], [154, 324], [116, 300]], seed + 31, 5.5, INK);
-  roughPath(ctx, [[417, 281], [482, 324], [523, 296]], seed + 32, 5.5, INK);
-
-  roughOval(ctx, 432, 139, 43, 43, seed + 40, RED, RED);
-  ctx.save();
-  ctx.fillStyle = "#fff9ef";
-  ctx.font = "700 18px ui-monospace, SFMono-Regular, Menlo, monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText("99+", 432, 140);
-  ctx.restore();
-
-  roughPath(ctx, [[313, 128], [320, 89], [329, 127]], seed + 41, 2, INK);
-  roughOval(ctx, 320, 80, 9, 9, seed + 42, INK, GOLD);
-
-  observedMarks(ctx, seed + 90, observed);
+function bell(g: Gfx, x: number, y: number, seed: number, pulse: number) {
+  g.push(x, y, 0.85 + pulse * 0.04);
+  const body: P[] = [[-22, 14], [-18, -7], [-11, -18], [0, -23], [11, -18], [18, -7], [22, 14], [14, 19], [-14, 19]];
+  g.group("paint", () => g.form(body, "#e5c778", "#b98c3d", { seed, light: [-3, -4] }));
+  g.group("ink", () => {
+    g.pen(body, { closed: true, w: 2.1, seed: seed + 1, wobble: 0.4 });
+    g.pen(arc(0, 19, 9, 7, 0, Math.PI, 5), { w: 1.7, seed: seed + 2, retrace: false });
+  });
+  g.pop();
 }
 
-function drawAlgorithm(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  const random = rng(seed + 100);
-  const nodes: [number, number, number][] = Array.from({ length: 11 }, (_, index) => {
-    const angle = (index / 11) * Math.PI * 2 + 0.2;
-    const radius = index % 2 ? 132 : 164;
-    return [
-      320 + Math.cos(angle) * radius,
-      232 + Math.sin(angle) * radius * 0.72 + breath,
-      15 + random() * 18,
-    ];
+function drawGoblin(g: Gfx, tick: number, look: P, active: boolean) {
+  const bounce = Math.sin(tick * 0.045) * 3.5;
+  const body: P[] = [[-92, -32], [-70, -94], [-22, -122], [32, -117], [76, -86], [96, -24], [82, 44], [41, 91], [-16, 102], [-68, 76], [-96, 24]];
+  const o: P = [347, 293 + bounce];
+  const B = (pts: P[]) => at(o, pts);
+
+  g.group("paint", () => {
+    g.form(B(body), "#dfe5cc", "#a6ad8f", { seed: 210, light: [-9, -12], hi: [295, 205, 20, 12, -25] });
+    g.wash(B(oval(-48, 35, 28, 17, 10)), "#e8a5a0", { alpha: 0.36, seed: 211, dx: 1, dy: 1, shrink: 0.98, rim: false });
+    g.wash(B(oval(50, 34, 28, 17, 10)), "#e8a5a0", { alpha: 0.36, seed: 212, dx: 1, dy: 1, shrink: 0.98, rim: false });
+  });
+  g.group("ink", () => {
+    g.pen(B(body), { closed: true, w: 3.6, seed: 220, wobble: 1, boil: 0.4 });
+    g.pen(B([[-82, -68], [-135, -108], [-90, -119]]), { w: 3, seed: 221, wobble: 0.7 });
+    g.pen(B([[80, -68], [137, -108], [89, -120]]), { w: 3, seed: 222, wobble: 0.7 });
+    g.hatch(o[0], o[1] + 60, 145, { n: 14, len: 13, angle: -0.5, seed: 223, opacity: 0.16 });
   });
 
-  ctx.save();
-  ctx.globalAlpha = 0.66;
-  nodes.forEach(([x, y], index) => {
-    const target = nodes[(index * 3 + 4) % nodes.length];
-    roughPath(ctx, [[x, y], [320 + (random() - 0.5) * 52, 232 + (random() - 0.5) * 36], [target[0], target[1]]], seed + index * 9, 1.4, BLUE);
+  eye(g, o[0] - 33, o[1] - 34, look, 230, 1.05);
+  eye(g, o[0] + 35, o[1] - 36, look, 240, 1.05);
+
+  const grin = active ? 19 : 10;
+  g.group("ink", () => {
+    g.pen(arc(o[0], o[1] + 23, grin, 11, 0.12 * Math.PI, 0.88 * Math.PI, 7), { w: 2.6, seed: 250 });
   });
-  ctx.restore();
 
-  nodes.forEach(([x, y, r], index) => roughOval(ctx, x, y, r, r * 0.78, seed + 220 + index, INK, index % 3 === 0 ? "#dce5e2" : PAPER));
+  const p1 = active ? 1 : 0;
+  bell(g, 170, 184, 260, Math.sin(tick * 0.08));
+  bell(g, 530, 184, 270, Math.sin(tick * 0.08 + 1.4));
+  bell(g, 155, 374, 280, Math.sin(tick * 0.08 + 2.8));
+  bell(g, 546, 385, 290, Math.sin(tick * 0.08 + 4.2));
 
-  roughOval(ctx, 320, 232 + breath, 76, 66, seed + 300, INK, "#e8dfca");
-  eyes(ctx, [[320, 228 + breath]], look, seed + 320);
+  const badgeX = 488 - p1 * 14;
+  const badgeY = 135 + Math.sin(tick * 0.05) * 4;
+  g.group("paint", () => g.form(oval(badgeX, badgeY, 45, 45, 12), RED, "#8f372b", { seed: 300, light: [-4, -5], hi: [badgeX - 14, badgeY - 14, 8, 5, -30] }));
+  g.group("ink", () => g.pen(oval(badgeX, badgeY, 45, 45, 12), { closed: true, w: 3, seed: 301, wobble: 0.6 }));
 
-  ctx.save();
-  ctx.font = "italic 16px Georgia, serif";
-  ctx.fillStyle = INK_SOFT;
-  ctx.textAlign = "center";
-  ctx.fillText("you may also like", 320, 336);
-  ctx.restore();
+  const c = g.cur;
+  c.save();
+  c.fillStyle = "#fff9ed";
+  c.font = "700 19px ui-monospace, SFMono-Regular, Menlo, monospace";
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.fillText("99+", badgeX, badgeY + 1);
+  c.restore();
 
-  observedMarks(ctx, seed + 390, observed);
+  if (active) {
+    const handL = B([[-87, -4]])[0];
+    const handR = [badgeX - 17, badgeY + 20] as P;
+    const arm = tube([handL, [445, 219], handR], 9, 7, false);
+    g.group("paint", () => g.form(arm, "#dfe5cc", "#a6ad8f", { seed: 315, light: [-3, -4] }));
+    g.group("ink", () => g.pen(arm, { closed: true, w: 2.6, seed: 316, wobble: 0.5 }));
+  }
 }
 
-function drawLurker(
-  ctx: CanvasRenderingContext2D,
-  look: [number, number],
-  breath: number,
-  seed: number,
-  observed: boolean,
-) {
-  ctx.save();
-  ctx.globalAlpha = 0.2;
-  roughOval(ctx, 320, 244, 132, 150, seed + 1, INK, INK);
-  ctx.restore();
-
-  roughPath(
-    ctx,
-    [[214, 338], [226, 188], [286, 112], [356, 111], [414, 188], [430, 339]],
-    seed + 4,
-    4,
-    INK,
-  );
-  roughPath(ctx, [[226, 188], [320, 167 + breath], [414, 188]], seed + 5, 3, INK);
-
-  eyes(ctx, [[294, 217 + breath], [347, 217 + breath]], look, seed + 20);
-
-  ctx.save();
-  ctx.globalAlpha = 0.38;
-  [
-    [143, 125, 62, 30],
-    [475, 273, 74, 34],
-    [132, 330, 52, 27],
-  ].forEach(([x, y, w, h], index) => {
-    ctx.strokeStyle = INK_SOFT;
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(x - w / 2, y - h / 2, w, h);
-    roughPath(ctx, [[x - w / 2 + 8, y], [x + w / 2 - 8, y]], seed + 40 + index, 1.2, INK_SOFT);
+function drawAlgorithm(g: Gfx, tick: number, look: P, active: boolean) {
+  const r = rng(370);
+  const core: P = [350, 267];
+  const nodes: { x: number; y: number; rx: number; ry: number }[] = Array.from({ length: 15 }, (_, i) => {
+    const a = (i / 15) * Math.PI * 2 + 0.22;
+    const ring = i % 3 === 0 ? 198 : i % 2 ? 155 : 118;
+    const shift = active ? Math.sin(tick * 0.023 + i) * 12 : Math.sin(tick * 0.013 + i) * 4;
+    return {
+      x: core[0] + Math.cos(a) * ring + shift,
+      y: core[1] + Math.sin(a) * ring * 0.66 + Math.cos(tick * 0.015 + i) * (active ? 8 : 3),
+      rx: 14 + r() * 13,
+      ry: 11 + r() * 9,
+    };
   });
-  ctx.restore();
 
-  observedMarks(ctx, seed + 90, observed);
+  g.group("ink", () => {
+    nodes.forEach((n, i) => {
+      const target = nodes[(i * 4 + 5) % nodes.length];
+      const mx = (n.x + target.x) / 2 + Math.sin(tick * 0.016 + i) * (active ? 22 : 8);
+      const my = (n.y + target.y) / 2 + Math.cos(tick * 0.017 + i) * (active ? 15 : 5);
+      g.pen([[n.x, n.y], [mx, my], [target.x, target.y]], {
+        w: 1.4,
+        color: BLUE,
+        seed: 400 + i,
+        opacity: active ? 0.54 : 0.34,
+        retrace: false,
+      });
+    });
+  });
+
+  nodes.forEach((n, i) => {
+    const fill = i % 4 === 0 ? "#dbe5e3" : i % 5 === 0 ? "#ead6c5" : "#f3ecdf";
+    g.group("paint", () => g.form(oval(n.x, n.y, n.rx, n.ry, 9), fill, "#b7b3a8", { seed: 450 + i, light: [-2, -3] }));
+    g.group("ink", () => g.pen(oval(n.x, n.y, n.rx, n.ry, 9), { closed: true, w: 1.8, seed: 470 + i, wobble: 0.5 }));
+  });
+
+  const pulse = 1 + Math.sin(tick * 0.03) * 0.025;
+  g.push(core[0], core[1], pulse);
+  g.group("paint", () => {
+    g.form(oval(0, 0, 86, 72, 14), "#e9dec8", "#afa18e", { seed: 520, light: [-8, -9], hi: [-28, -26, 14, 8, -26] });
+    g.wash(oval(0, 0, 55, 44, 12), "#d7e3e1", { alpha: 0.4, seed: 521, dx: 1, dy: 1, shrink: 0.98, rim: true });
+  });
+  g.group("ink", () => {
+    g.pen(oval(0, 0, 86, 72, 14), { closed: true, w: 3, seed: 522, wobble: 0.8, boil: 0.3 });
+    g.pen(oval(0, 0, 55, 44, 12), { closed: true, w: 1.5, color: PENCIL_BLUE, seed: 523, opacity: 0.48, retrace: false });
+  });
+  eye(g, 0, 0, [look[0] - core[0], look[1] - core[1]], 530, 1.35);
+  g.pop();
+
+  const c = g.cur;
+  c.save();
+  c.fillStyle = "#687067";
+  c.font = "italic 15px Georgia, serif";
+  c.textAlign = "center";
+  c.fillText(active ? "re-ranking observer…" : "you may also like", core[0], 426);
+  c.restore();
+
+  if (active) {
+    const nearest = nodes.reduce((best, n) => {
+      const d = Math.hypot(n.x - look[0], n.y - look[1]);
+      return d < best.d ? { n, d } : best;
+    }, { n: nodes[0], d: Infinity });
+    g.group("ink", () => {
+      g.pen(oval(nearest.n.x, nearest.n.y, nearest.n.rx + 12, nearest.n.ry + 12, 10), {
+        closed: true,
+        w: 1.7,
+        color: RED,
+        seed: 590,
+        opacity: 0.85,
+        retrace: false,
+      });
+    });
+  }
+}
+
+function drawLurker(g: Gfx, tick: number, look: P, active: boolean) {
+  const reveal = active ? 1 : 0.72;
+  const breathe = Math.sin(tick * 0.018) * 3;
+
+  g.group("paint", () => {
+    g.wash([[185, 440], [205, 182], [278, 108], [422, 106], [496, 182], [518, 440]], "#59625c", {
+      alpha: 0.12 * reveal,
+      seed: 610,
+      dx: 5,
+      dy: 2,
+      shrink: 0.98,
+      rim: true,
+    });
+    g.wash(oval(350, 267, 126, 155, 16), "#6c756e", {
+      alpha: 0.18 * reveal,
+      seed: 611,
+      dx: 3,
+      dy: 1,
+      shrink: 0.98,
+      rim: true,
+    });
+  });
+
+  g.group("ink", () => {
+    g.pen([[194, 443], [209, 183], [284, 104], [416, 104], [493, 183], [509, 443]], {
+      w: 3.2,
+      color: INK,
+      seed: 620,
+      opacity: 0.74 * reveal,
+      wobble: 1.2,
+    });
+    g.pen([[211, 184], [350, 159 + breathe], [492, 184]], {
+      w: 2.2,
+      color: PENCIL_BLUE,
+      seed: 621,
+      opacity: 0.38 * reveal,
+      wobble: 1.4,
+      retrace: false,
+    });
+    g.hatch(350, 347, 170, { n: 18, len: 18, angle: -0.75, seed: 622, opacity: 0.14 * reveal });
+  });
+
+  const hide = active ? 14 + Math.sin(tick * 0.04) * 5 : 0;
+  eye(g, 320 - hide, 238 + breathe, look, 630, 1.05);
+  eye(g, 381 - hide, 238 + breathe, look, 640, 1.05);
+
+  if (active) {
+    const veil = tube([[448, 166], [408, 226], [380, 286]], 22, 14, false);
+    g.group("paint", () => g.form(veil, "#737b74", "#525852", { seed: 650, light: [-4, -5] }));
+    g.group("ink", () => g.pen(veil, { closed: true, w: 2.5, seed: 651, wobble: 0.8 }));
+  }
+
+  g.group("ink", () => {
+    [
+      [117, 135, 66, 34],
+      [560, 322, 84, 38],
+      [126, 373, 58, 31],
+    ].forEach(([x, y, w, h], i) => {
+      g.pen(oval(x, y, w / 2, h / 2, 10), { closed: true, w: 1.2, color: PENCIL_BLUE, seed: 670 + i, opacity: 0.26, retrace: false });
+    });
+  });
 }
 
 export function createSpecimenPiece(
@@ -306,42 +373,38 @@ export function createSpecimenPiece(
   seed: number,
 ): Piece {
   return {
-    meta: {
-      title,
-      W,
-      H,
-      loop: 240,
-      alt,
-    },
+    meta: { title, W, H, loop: 300, alt },
     input: {
       springs: {
         look: {
-          omega: 0.13,
-          target: (state) => state.pointer ?? [W * 0.58, H * 0.38],
+          omega: 0.14,
+          target: (d) => d.pointer ?? [W * 0.58, H * 0.38],
         },
       },
     },
     draw: (ctx, tick, env, state) => {
       ctx.setTransform(env.scale, 0, 0, env.scale, 0, 0);
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = "source-over";
       paper(ctx, seed);
+      const g = new Gfx(ctx, env, tick, PENCIL);
+      const look = state.spring.look as P;
+      const active = state.state === "observed" || state.attention !== null;
 
-      const phase = ((tick % 240) / 240) * Math.PI * 2;
-      const breath = state.reduced ? 0 : Math.sin(phase) * 2.8;
-      const look = state.spring.look as [number, number];
-      const observed = state.state === "observed";
+      g.group("ink", () => {
+        g.pen([[34, 38], [136, 38]], { w: 1.1, color: RED, seed: seed + 4, opacity: 0.65, retrace: false });
+        g.pen([[564, 476], [666, 476]], { w: 1.1, color: MOSS, seed: seed + 5, opacity: 0.5, retrace: false });
+      });
 
-      if (kind === "scroller") drawScroller(ctx, look, breath, seed, observed);
-      if (kind === "goblin") drawGoblin(ctx, look, breath, seed, observed);
-      if (kind === "algorithm") drawAlgorithm(ctx, look, breath, seed, observed);
-      if (kind === "lurker") drawLurker(ctx, look, breath, seed, observed);
+      if (kind === "scroller") drawScroller(g, tick, look, active);
+      if (kind === "goblin") drawGoblin(g, tick, look, active);
+      if (kind === "algorithm") drawAlgorithm(g, tick, look, active);
+      if (kind === "lurker") drawLurker(g, tick, look, active);
+
+      observationMarks(g, seed + 700, state.state === "observed");
 
       ctx.save();
-      ctx.fillStyle = INK_SOFT;
-      ctx.globalAlpha = 0.58;
-      ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, monospace";
-      ctx.fillText("FIELD SKETCH · LIVE SPECIMEN", 22, H - 22);
+      ctx.fillStyle = "#697067";
+      ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText("FIELD SKETCH / LIVE SPECIMEN", 36, H - 24);
       ctx.restore();
     },
   };
