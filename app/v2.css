@@ -599,3 +599,549 @@
   0% { opacity: .25; }
   100% { opacity: 1; }
 }
+
+
+/* =========================================================
+   EDITORIAL MOTION SYSTEM
+   ========================================================= */
+
+.field-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100dvh;
+  padding: clamp(24px, 3.2vw, 52px);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255,255,255,.5), transparent 32rem),
+    repeating-linear-gradient(0deg, rgba(37,41,34,.018) 0 1px, transparent 1px 5px),
+    var(--paper);
+  border-bottom: 1px solid var(--line-strong);
+  transition:
+    transform .62s cubic-bezier(.72, 0, .2, 1),
+    opacity .38s ease .14s;
+  will-change: transform, opacity;
+}
+
+.field-loader::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+  background: var(--red);
+  transform-origin: left center;
+  animation: field-loader-rule 1.2s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.field-loader.is-exiting {
+  transform: translateY(-102%);
+  opacity: .98;
+}
+
+.field-loader__topline,
+.field-loader__footer > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.field-loader__topline {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.field-loader__stage {
+  width: min(720px, 72vw);
+  aspect-ratio: 1.5 / 1;
+  align-self: center;
+  justify-self: center;
+  position: relative;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(37,41,34,.22);
+  background:
+    linear-gradient(90deg, transparent calc(50% - .5px), rgba(37,41,34,.08) 50%, transparent calc(50% + .5px)),
+    linear-gradient(transparent calc(50% - .5px), rgba(37,41,34,.08) 50%, transparent calc(50% + .5px)),
+    rgba(250,246,236,.36);
+  box-shadow: 12px 14px 0 rgba(37,41,34,.045);
+}
+
+.field-loader__stage::before,
+.field-loader__stage::after {
+  content: "";
+  position: absolute;
+  width: 108px;
+  height: 18px;
+  top: -9px;
+  background: rgba(198,180,144,.56);
+}
+
+.field-loader__stage::before {
+  left: 12%;
+  transform: rotate(-3deg);
+}
+
+.field-loader__stage::after {
+  right: 10%;
+  transform: rotate(4deg);
+}
+
+.field-loader__registration {
+  position: absolute;
+  color: var(--red);
+  font: 400 20px/1 ui-monospace, monospace;
+  opacity: .52;
+}
+
+.field-loader__registration--a { top: 15px; left: 18px; }
+.field-loader__registration--b { top: 15px; right: 18px; }
+.field-loader__registration--c { bottom: 15px; left: 18px; }
+.field-loader__registration--d { bottom: 15px; right: 18px; }
+
+.field-loader__specimen {
+  width: min(390px, 60vw);
+  aspect-ratio: 1.34 / 1;
+  position: relative;
+  animation: field-loader-breathe 2.2s ease-in-out infinite;
+}
+
+.field-loader__wing,
+.field-loader__body,
+.field-loader__scan {
+  position: absolute;
+  display: block;
+}
+
+.field-loader__wing {
+  top: 26%;
+  width: 43%;
+  height: 45%;
+  border: 1.5px solid var(--ink);
+  background: rgba(82,121,133,.12);
+  opacity: .72;
+}
+
+.field-loader__wing--left {
+  left: 7%;
+  border-radius: 68% 18% 58% 28%;
+  transform: rotate(16deg);
+  transform-origin: 100% 55%;
+  animation: field-loader-wing-left 1.9s ease-in-out infinite;
+}
+
+.field-loader__wing--right {
+  right: 7%;
+  border-radius: 18% 68% 28% 58%;
+  transform: rotate(-16deg);
+  transform-origin: 0 55%;
+  animation: field-loader-wing-right 1.9s ease-in-out infinite;
+}
+
+.field-loader__body {
+  left: 47%;
+  top: 20%;
+  width: 6%;
+  height: 61%;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: rgba(181,139,79,.24);
+}
+
+.field-loader__scan {
+  left: -4%;
+  right: -4%;
+  top: 5%;
+  height: 1px;
+  background: var(--red);
+  box-shadow: 0 0 16px rgba(184,79,61,.28);
+  opacity: .72;
+  animation: field-loader-scan 1.65s cubic-bezier(.45,0,.55,1) infinite;
+}
+
+.field-loader__footer {
+  display: grid;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.field-loader__footer strong {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.field-loader__track {
+  height: 3px;
+  overflow: hidden;
+  background: rgba(37,41,34,.12);
+}
+
+.field-loader__track i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  transition: width .16s cubic-bezier(.2,.8,.2,1);
+}
+
+.field-loader__footer p {
+  margin: 0;
+  color: var(--ink-soft);
+  font: italic 12px/1.3 Georgia, serif;
+}
+
+/* Hero enters after the live plate has actually mounted. */
+#field-guide:not(.is-motion-ready) .site-header,
+#field-guide:not(.is-motion-ready) .hero-copy > *,
+#field-guide:not(.is-motion-ready) .hero-plate,
+#field-guide:not(.is-motion-ready) .hero-margin-note {
+  opacity: 0;
+}
+
+#field-guide.is-motion-ready .site-header {
+  animation: field-header-in .72s cubic-bezier(.2,.8,.2,1) both;
+}
+
+#field-guide.is-motion-ready .hero-copy .eyebrow-row {
+  animation: field-copy-in .62s cubic-bezier(.2,.8,.2,1) .08s both;
+}
+
+#field-guide.is-motion-ready .hero-copy h1 {
+  animation: field-title-in .92s cubic-bezier(.16,1,.3,1) .15s both;
+}
+
+#field-guide.is-motion-ready .hero-copy .hero-intro {
+  animation: field-copy-in .72s cubic-bezier(.2,.8,.2,1) .34s both;
+}
+
+#field-guide.is-motion-ready .hero-copy .hero-actions {
+  animation: field-copy-in .72s cubic-bezier(.2,.8,.2,1) .46s both;
+}
+
+#field-guide.is-motion-ready .hero-copy .hero-process {
+  animation: field-copy-in .72s cubic-bezier(.2,.8,.2,1) .58s both;
+}
+
+#field-guide.is-motion-ready .hero-plate {
+  animation: field-plate-in 1s cubic-bezier(.16,1,.3,1) .2s both;
+}
+
+#field-guide.is-motion-ready .hero-margin-note {
+  animation: field-note-in .7s cubic-bezier(.2,.8,.2,1) .78s both;
+}
+
+/* Section-level reveals */
+html.tifg-motion [data-reveal="editorial"] {
+  --reveal-ease: cubic-bezier(.16, 1, .3, 1);
+}
+
+html.tifg-motion .field-preface[data-reveal="editorial"]:not(.is-revealed) > *,
+html.tifg-motion .section-heading[data-reveal="editorial"]:not(.is-revealed) > *,
+html.tifg-motion .journal-heading[data-reveal="editorial"]:not(.is-revealed) > * {
+  opacity: 0;
+  translate: 0 34px;
+}
+
+html.tifg-motion .field-preface[data-reveal="editorial"].is-revealed > *,
+html.tifg-motion .section-heading[data-reveal="editorial"].is-revealed > *,
+html.tifg-motion .journal-heading[data-reveal="editorial"].is-revealed > * {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity .72s var(--reveal-ease),
+    translate .82s var(--reveal-ease);
+}
+
+html.tifg-motion .field-preface[data-reveal="editorial"].is-revealed > :nth-child(2),
+html.tifg-motion .section-heading[data-reveal="editorial"].is-revealed > :nth-child(2),
+html.tifg-motion .journal-heading[data-reveal="editorial"].is-revealed > :nth-child(2) {
+  transition-delay: .11s;
+}
+
+html.tifg-motion .field-preface[data-reveal="editorial"].is-revealed > :nth-child(3),
+html.tifg-motion .journal-heading[data-reveal="editorial"].is-revealed > :nth-child(3) {
+  transition-delay: .21s;
+}
+
+/* Each specimen assembles instead of fading as one block. */
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .specimen-card__header,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .epitaph,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .specimen-facts,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .observe-button,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .field-note {
+  opacity: 0;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .specimen-card__header {
+  translate: -34px 0;
+}
+
+html.tifg-motion .specimen-card:nth-child(even)[data-reveal="editorial"]:not(.is-revealed) .specimen-card__header {
+  translate: 34px 0;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .epitaph,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .specimen-facts,
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .observe-button {
+  translate: 28px 0;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .specimen-art-wrap {
+  opacity: 0;
+  translate: 0 56px;
+  scale: .95;
+  filter: blur(4px);
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"]:not(.is-revealed) .sketch-note {
+  opacity: 0;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-card__header,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .epitaph,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-facts,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .observe-button,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .field-note,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-art-wrap,
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .sketch-note {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  filter: blur(0);
+  transition:
+    opacity .7s var(--reveal-ease),
+    translate .9s var(--reveal-ease),
+    scale .9s var(--reveal-ease),
+    filter .75s ease;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-art-wrap {
+  transition-delay: .05s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-card__header {
+  transition-delay: .14s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .epitaph {
+  transition-delay: .22s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .specimen-facts {
+  transition-delay: .3s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .observe-button {
+  transition-delay: .38s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .sketch-note--left {
+  transition-delay: .5s;
+}
+
+html.tifg-motion .specimen-card[data-reveal="editorial"].is-revealed .sketch-note--right {
+  transition-delay: .6s;
+}
+
+/* Field Blind opens like a split observation folder. */
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"]:not(.is-revealed) {
+  opacity: 0;
+  translate: 0 46px;
+  scale: .985;
+}
+
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"]:not(.is-revealed) .quiet-zone__copy {
+  translate: -42px 0;
+  opacity: 0;
+}
+
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"]:not(.is-revealed) .quiet-observation-window {
+  translate: 42px 0;
+  opacity: 0;
+}
+
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"].is-revealed {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  transition:
+    opacity .72s var(--reveal-ease),
+    translate .9s var(--reveal-ease),
+    scale .9s var(--reveal-ease);
+}
+
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"].is-revealed .quiet-zone__copy,
+html.tifg-motion .quiet-zone-v2[data-reveal="editorial"].is-revealed .quiet-observation-window {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity .75s var(--reveal-ease) .16s,
+    translate .95s var(--reveal-ease) .16s;
+}
+
+/* Secret specimen should feel discovered, not inserted. */
+html.tifg-motion .secret-section[data-reveal="editorial"]:not(.is-revealed) {
+  opacity: 0;
+  translate: 0 70px;
+  filter: blur(7px);
+}
+
+html.tifg-motion .secret-section[data-reveal="editorial"].is-revealed {
+  opacity: 1;
+  translate: 0 0;
+  filter: blur(0);
+  transition:
+    opacity .8s var(--reveal-ease),
+    translate 1s var(--reveal-ease),
+    filter .8s ease;
+}
+
+/* Journal fills one recorded cell at a time. */
+html.tifg-motion .journal-grid[data-reveal="editorial"]:not(.is-revealed) .journal-stamp {
+  opacity: 0;
+  translate: 0 28px;
+  scale: .97;
+}
+
+html.tifg-motion .journal-grid[data-reveal="editorial"].is-revealed .journal-stamp {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  transition:
+    opacity .6s var(--reveal-ease),
+    translate .72s var(--reveal-ease),
+    scale .72s var(--reveal-ease);
+}
+
+html.tifg-motion .journal-grid[data-reveal="editorial"].is-revealed .journal-stamp:nth-child(2) { transition-delay: .09s; }
+html.tifg-motion .journal-grid[data-reveal="editorial"].is-revealed .journal-stamp:nth-child(3) { transition-delay: .18s; }
+html.tifg-motion .journal-grid[data-reveal="editorial"].is-revealed .journal-stamp:nth-child(4) { transition-delay: .27s; }
+
+html.tifg-motion footer[data-reveal="editorial"]:not(.is-revealed) {
+  opacity: 0;
+  translate: 0 26px;
+}
+
+html.tifg-motion footer[data-reveal="editorial"].is-revealed {
+  opacity: 1;
+  translate: 0 0;
+  transition:
+    opacity .7s var(--reveal-ease),
+    translate .8s var(--reveal-ease);
+}
+
+@keyframes field-loader-rule {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes field-loader-scan {
+  0% { top: 8%; opacity: .2; }
+  50% { opacity: .78; }
+  100% { top: 90%; opacity: .2; }
+}
+
+@keyframes field-loader-breathe {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.018; }
+}
+
+@keyframes field-loader-wing-left {
+  0%, 100% { transform: rotate(16deg); }
+  50% { transform: rotate(12deg); }
+}
+
+@keyframes field-loader-wing-right {
+  0%, 100% { transform: rotate(-16deg); }
+  50% { transform: rotate(-12deg); }
+}
+
+@keyframes field-header-in {
+  from { opacity: 0; translate: 0 -18px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes field-copy-in {
+  from { opacity: 0; translate: 0 28px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@keyframes field-title-in {
+  from {
+    opacity: 0;
+    translate: 0 42px;
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes field-plate-in {
+  from {
+    opacity: 0;
+    translate: 52px 34px;
+    scale: .965;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@keyframes field-note-in {
+  from { opacity: 0; translate: 16px 8px; }
+  to { opacity: 1; translate: 0 0; }
+}
+
+@media (max-width: 760px) {
+  .field-loader {
+    padding: 20px 16px 24px;
+  }
+
+  .field-loader__stage {
+    width: 100%;
+  }
+
+  .field-loader__specimen {
+    width: min(300px, 72vw);
+  }
+
+  .field-loader__topline span:last-child {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field-loader__specimen,
+  .field-loader__wing,
+  .field-loader__scan,
+  .field-loader::after {
+    animation: none !important;
+  }
+
+  #field-guide:not(.is-motion-ready) .site-header,
+  #field-guide:not(.is-motion-ready) .hero-copy > *,
+  #field-guide:not(.is-motion-ready) .hero-plate,
+  #field-guide:not(.is-motion-ready) .hero-margin-note,
+  html.tifg-motion [data-reveal="editorial"],
+  html.tifg-motion [data-reveal="editorial"] * {
+    opacity: 1 !important;
+    translate: 0 0 !important;
+    scale: 1 !important;
+    filter: none !important;
+    clip-path: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
