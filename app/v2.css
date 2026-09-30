@@ -1317,11 +1317,13 @@ html.tifg-motion footer[data-reveal="editorial"].is-revealed {
 }
 
 .field-loader__script-stage {
-  width: min(920px, 86vw);
+  width: min(1120px, 88vw);
   align-self: center;
   justify-self: center;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   position: relative;
   padding: clamp(72px, 10vh, 130px) 40px;
 }
@@ -1343,24 +1345,27 @@ html.tifg-motion footer[data-reveal="editorial"].is-revealed {
 .field-loader__script-stage::after { bottom: 16%; animation-delay: .48s; }
 
 .field-loader__script-wrap {
-  width: min(790px, 78vw);
+  width: max-content;
+  max-width: 84vw;
   position: relative;
   line-height: 1;
   white-space: nowrap;
-  text-align: center;
+  text-align: left;
+  margin-inline: auto;
 }
 
 .field-loader__script-ghost,
 .field-loader__script-ink {
   display: block;
   font-family: "Snell Roundhand", "Segoe Script", "Brush Script MT", cursive;
-  font-size: clamp(52px, 7.8vw, 118px);
+  font-size: clamp(52px, 6.1vw, 110px);
   font-weight: 400;
   letter-spacing: -.035em;
 }
 
 .field-loader__script-ghost {
   color: rgba(37,41,34,.075);
+  text-align: left;
 }
 
 .field-loader__script-ink {
@@ -1399,7 +1404,9 @@ html.tifg-motion footer[data-reveal="editorial"].is-revealed {
 }
 
 .field-loader__script-subtitle {
-  margin: 26px 0 0;
+  margin: 28px 0 0;
+  width: 100%;
+  text-align: center;
   color: var(--ink-soft);
   font: italic clamp(13px, 1.3vw, 18px)/1.4 Georgia, serif;
   opacity: 0;
@@ -1408,9 +1415,9 @@ html.tifg-motion footer[data-reveal="editorial"].is-revealed {
 
 .field-loader__botanical {
   position: absolute;
-  right: 2%;
-  bottom: 2%;
-  width: min(190px, 21vw);
+  right: 4%;
+  bottom: 8%;
+  width: min(165px, 18vw);
   height: auto;
   color: var(--moss);
   opacity: .48;
@@ -1486,13 +1493,14 @@ html.tifg-motion footer[data-reveal="editorial"].is-revealed {
   }
 
   .field-loader__script-wrap {
-    width: 92vw;
-    white-space: normal;
+    width: max-content;
+    max-width: 92vw;
+    white-space: nowrap;
   }
 
   .field-loader__script-ghost,
   .field-loader__script-ink {
-    font-size: clamp(44px, 14vw, 72px);
+    font-size: clamp(40px, 11.5vw, 66px);
   }
 
   .field-loader__botanical {
