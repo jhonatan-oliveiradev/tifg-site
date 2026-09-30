@@ -362,14 +362,15 @@ export const fieldGuideHero: Piece = {
     ctx.globalCompositeOperation = "source-over";
     paper(ctx);
 
-    // Front-load the illustration so the plate never feels broken/empty,
-    // then reserve the final ~30% of the scroll sequence for the living specimen.
-    const p = state.reduced ? 1 : scrollSpan(state.spring.p as number, 0.005, 0.88);
-    const c = clamp(p / 0.12);
-    const s = clamp((p - 0.06) / 0.22);
-    const w = clamp((p - 0.23) / 0.2);
-    const i = clamp((p - 0.4) / 0.22);
-    const alive = clamp((p - 0.58) / 0.12);
+    // Complete the authored drawing early enough that the visitor gets a long,
+    // uninterrupted look at the living specimen while the hero is still pinned.
+    // The moth is fully inked + awake at roughly the first 35–40% of the track.
+    const p = state.reduced ? 1 : scrollSpan(state.spring.p as number, 0.005, 0.58);
+    const c = clamp(p / 0.11);
+    const s = clamp((p - 0.05) / 0.2);
+    const w = clamp((p - 0.2) / 0.18);
+    const i = clamp((p - 0.36) / 0.2);
+    const alive = clamp((p - 0.52) / 0.1);
 
     construction(ctx, c);
     sketch(ctx, s);
@@ -384,9 +385,9 @@ export const fieldGuideHero: Piece = {
     ctx.fillText("CONSTRUCTION / WASH / FINAL LINE", 26, H - 28);
     ctx.restore();
 
-    if (!state.reduced && p < 0.62) {
-      if (p < 0.23) tool(ctx, clamp(s), "pencil");
-      else if (p < 0.43) tool(ctx, clamp(w), "brush");
+    if (!state.reduced && p < 0.58) {
+      if (p < 0.21) tool(ctx, clamp(s), "pencil");
+      else if (p < 0.39) tool(ctx, clamp(w), "brush");
       else tool(ctx, clamp(i), "pencil");
     }
 
@@ -397,9 +398,9 @@ export const fieldGuideHero: Piece = {
       ctx.restore();
     }
 
-    if (p > 0.78) {
+    if (p > 0.68) {
       ctx.save();
-      ctx.globalAlpha = clamp((p - 0.78) / 0.08);
+      ctx.globalAlpha = clamp((p - 0.68) / 0.08);
       ctx.strokeStyle = RED;
       ctx.lineWidth = 1.2;
       ctx.setLineDash([5, 6]);
