@@ -14,8 +14,8 @@ import type { Piece } from "../../.anidoodle/repo/skills/anidoodle/engine/src/ca
 
 export type SpecimenKind = "scroller" | "goblin" | "algorithm" | "lurker";
 
-const W = 700;
-const H = 520;
+const W = 760;
+const H = 600;
 const PAPER = "#f5eedf";
 const INK = "#2e312b";
 const PENCIL_BLUE = "#8d94a1";
@@ -378,6 +378,7 @@ function drawLurker(g: Gfx, tick: number, look: P, state: string) {
         seed: 622,
         opacity: 0.14 * level,
       });
+
       [
         [117, 135, 66, 34],
         [560, 322, 84, 38],
@@ -400,4 +401,65 @@ function drawLurker(g: Gfx, tick: number, look: P, state: string) {
     g.group("paint", () => g.form(veil, "#737b74", "#525852", { seed: 650, light: [-4, -5] }));
     g.group("ink", () => g.pen(veil, { closed: true, w: 2.5, seed: 651, wobble: 0.8 }));
   }
+}
+
+export function createSpecimenPiece(
+  kind: SpecimenKind,
+  title: string,
+  alt: string,
+  seed: number,
+): Piece {
+  return {
+    meta: { title, W, H, loop: 360, alt },
+    input: {
+      springs: {
+        look: {
+          omega: 0.14,
+          target: (d) => d.pointer ?? [W * 0.58, H * 0.38],
+        },
+      },
+    },
+    draw: (ctx, tick, env, state) => {
+      ctx.setTransform(env.scale, 0, 0, env.scale, 0, 0);
+      paper(ctx, seed);
+      const g = new Gfx(ctx, env, tick, PENCIL);
+      const absoluteLook = state.spring.look as P;
+      const look: P = [absoluteLook[0] - 30, absoluteLook[1] - 40];
+      const active = state.state === "observed" || state.attention !== null;
+
+      g.push(30, 40, 1);
+
+      g.group("ink", () => {
+        g.pen([[34, 38], [136, 38]], {
+          w: 1.1,
+          color: RED,
+          seed: seed + 4,
+          opacity: 0.65,
+          retrace: false,
+        });
+        g.pen([[564, 476], [666, 476]], {
+          w: 1.1,
+          color: MOSS,
+          seed: seed + 5,
+          opacity: 0.5,
+          retrace: false,
+        });
+      });
+
+      if (kind === "scroller") drawScroller(g, tick, look, active);
+      if (kind === "goblin") drawGoblin(g, tick, look, active);
+      if (kind === "algorithm") drawAlgorithm(g, tick, look, active);
+      if (kind === "lurker") drawLurker(g, tick, look, state.state);
+
+      g.pop();
+
+      observationMarks(g, seed + 700, state.state === "observed");
+
+      ctx.save();
+      ctx.fillStyle = "#697067";
+      ctx.font = "600 10px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText("LIVE FIELD PLATE · ANIDOODLE PENCIL / WATERCOLOUR", 36, H - 24);
+      ctx.restore();
+    },
+  };
 }
