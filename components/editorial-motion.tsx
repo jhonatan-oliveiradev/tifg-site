@@ -23,6 +23,8 @@ export function FieldGuidePreloader({
   const completedRef = useRef(false);
 
   useEffect(() => {
+    if (!mounted) return;
+
     startedAt.current = performance.now();
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -45,7 +47,7 @@ export function FieldGuidePreloader({
       window.clearTimeout(fallback);
       document.body.style.overflow = previousOverflow;
     };
-  }, []);
+  }, [mounted]);
 
   useEffect(() => {
     if ((!ready && !fallbackReady) || completedRef.current) return;
