@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MIN_VISIBLE_MS = 1600;
+const MIN_VISIBLE_MS = 1750;
 const EXIT_MS = 520;
 const FALLBACK_READY_MS = 3600;
+const SCRIPT_FAILSAFE_MS = 2400;
 const REVEAL_SELECTOR =
   ".field-preface, .section-heading, .specimen-card, .quiet-zone-v2, .secret-section, .journal-heading, .journal-grid, footer";
 
@@ -19,6 +20,7 @@ export function FieldGuidePreloader({
 }: FieldGuidePreloaderProps) {
   const [progress, setProgress] = useState(6);
   const [fallbackReady, setFallbackReady] = useState(false);
+  const [scriptComplete, setScriptComplete] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [mounted, setMounted] = useState(true);
   const startedAt = useRef(0);
@@ -44,15 +46,20 @@ export function FieldGuidePreloader({
       setFallbackReady(true);
     }, FALLBACK_READY_MS);
 
+    const scriptFailsafe = window.setTimeout(() => {
+      setScriptComplete(true);
+    }, SCRIPT_FAILSAFE_MS);
+
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(fallback);
+      window.clearTimeout(scriptFailsafe);
       document.body.style.overflow = previousOverflow;
     };
   }, [mounted]);
 
   useEffect(() => {
-    if ((!ready && !fallbackReady) || completedRef.current) return;
+    if ((!ready && !fallbackReady) || !scriptComplete || completedRef.current) return;
 
     const elapsed = performance.now() - startedAt.current;
     const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
@@ -79,7 +86,7 @@ export function FieldGuidePreloader({
       window.clearTimeout(exitTimer);
       window.clearTimeout(completeTimer);
     };
-  }, [ready, fallbackReady, onComplete]);
+  }, [ready, fallbackReady, scriptComplete, onComplete]);
 
   if (!mounted) return null;
 
@@ -118,7 +125,16 @@ export function FieldGuidePreloader({
 
         <div className="field-loader__script-wrap" aria-hidden="true">
           <span className="field-loader__script-ghost">The Internet Field Guide</span>
-          <span className="field-loader__script-ink">The Internet Field Guide</span>
+          <span
+            className="field-loader__script-ink"
+            onAnimationEnd={(event) => {
+              if (event.animationName === "field-script-write") {
+                setScriptComplete(true);
+              }
+            }}
+          >
+            The Internet Field Guide
+          </span>
           <i className="field-loader__pen-nib" />
         </div>
 
