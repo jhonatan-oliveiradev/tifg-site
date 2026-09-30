@@ -11,22 +11,36 @@
   position: sticky;
   top: 0;
   display: grid;
-  grid-template-columns: minmax(0, .82fr) minmax(560px, 1.18fr);
-  gap: clamp(36px, 6vw, 96px);
+  grid-template-columns: minmax(0, .72fr) minmax(620px, 1.28fr);
+  gap: clamp(56px, 7vw, 118px);
   align-items: center;
   padding: 46px 0 38px;
 }
 
 .hero-story .hero-copy {
   align-self: center;
+  min-width: 0;
+  max-width: 520px;
+  padding-right: clamp(8px, 1.5vw, 22px);
 }
 
 .hero-story .hero h1,
 .hero-story h1 {
-  font-size: clamp(60px, 5.8vw, 104px);
+  max-width: 500px;
+  font-size: clamp(58px, 5.05vw, 94px);
+  line-height: .88;
+  text-wrap: balance;
+}
+
+.hero-story h1 > span {
+  display: block;
+  margin-left: .12em;
+  white-space: normal;
 }
 
 .hero-story .hero-plate {
+  width: min(820px, 100%);
+  justify-self: end;
   transform: rotate(.45deg);
   padding: 14px;
   box-shadow: 18px 22px 0 rgba(37, 41, 34, .075);
@@ -387,11 +401,17 @@
   }
 
   .hero-stage {
-    grid-template-columns: minmax(0, .76fr) minmax(650px, 1.24fr);
+    grid-template-columns: minmax(0, .68fr) minmax(720px, 1.32fr);
+    gap: clamp(72px, 7vw, 126px);
+  }
+
+  .hero-story .hero-copy {
+    max-width: 540px;
   }
 
   .hero-story h1 {
-    font-size: clamp(72px, 5.6vw, 112px);
+    max-width: 520px;
+    font-size: clamp(68px, 4.9vw, 98px);
   }
 
   .specimen-card {
@@ -412,9 +432,20 @@
     padding: 68px 0 90px;
   }
 
+  .hero-story .hero-copy {
+    max-width: 760px;
+    padding-right: 0;
+  }
+
+  .hero-story h1 {
+    max-width: 760px;
+  }
+
   .hero-story .hero-plate {
     width: min(840px, 100%);
     margin-left: auto;
+    margin-right: auto;
+    justify-self: center;
   }
 
   .hero-process {
