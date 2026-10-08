@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const MIN_VISIBLE_MS = 950;
-const EXIT_MS = 620;
-const FALLBACK_READY_MS = 4200;
+const MIN_VISIBLE_MS = 1750;
+const EXIT_MS = 520;
+const FALLBACK_READY_MS = 3600;
+const SCRIPT_FAILSAFE_MS = 2400;
+const REVEAL_SELECTOR =
+  ".field-preface, .section-heading, .specimen-card, .quiet-zone-v2, .secret-section, .journal-heading, .journal-grid, footer";
 
 type FieldGuidePreloaderProps = {
   ready: boolean;
@@ -15,8 +18,9 @@ export function FieldGuidePreloader({
   ready,
   onComplete,
 }: FieldGuidePreloaderProps) {
-  const [progress, setProgress] = useState(4);
+  const [progress, setProgress] = useState(6);
   const [fallbackReady, setFallbackReady] = useState(false);
+  const [scriptComplete, setScriptComplete] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [mounted, setMounted] = useState(true);
   const startedAt = useRef(0);
@@ -31,26 +35,31 @@ export function FieldGuidePreloader({
 
     const interval = window.setInterval(() => {
       setProgress((value) => {
-        if (value >= 88) return value;
-        const step = value < 36 ? 4 : value < 68 ? 2 : 1;
-        return Math.min(88, value + step);
+        if (value >= 90) return value;
+        const step = value < 42 ? 3 : value < 72 ? 2 : 1;
+        return Math.min(90, value + step);
       });
-    }, 72);
+    }, 86);
 
     const fallback = window.setTimeout(() => {
       setProgress(100);
       setFallbackReady(true);
     }, FALLBACK_READY_MS);
 
+    const scriptFailsafe = window.setTimeout(() => {
+      setScriptComplete(true);
+    }, SCRIPT_FAILSAFE_MS);
+
     return () => {
       window.clearInterval(interval);
       window.clearTimeout(fallback);
+      window.clearTimeout(scriptFailsafe);
       document.body.style.overflow = previousOverflow;
     };
   }, [mounted]);
 
   useEffect(() => {
-    if ((!ready && !fallbackReady) || completedRef.current) return;
+    if ((!ready && !fallbackReady) || !scriptComplete || completedRef.current) return;
 
     const elapsed = performance.now() - startedAt.current;
     const wait = Math.max(0, MIN_VISIBLE_MS - elapsed);
@@ -69,7 +78,7 @@ export function FieldGuidePreloader({
           document.body.style.overflow = "";
           onComplete();
         }, EXIT_MS);
-      }, 170);
+      }, 120);
     }, wait);
 
     return () => {
@@ -77,45 +86,71 @@ export function FieldGuidePreloader({
       window.clearTimeout(exitTimer);
       window.clearTimeout(completeTimer);
     };
-  }, [ready, fallbackReady, onComplete]);
+  }, [ready, fallbackReady, scriptComplete, onComplete]);
 
   if (!mounted) return null;
 
   return (
     <div
-      className={`field-loader ${exiting ? "is-exiting" : ""}`}
+      className={`field-loader field-loader--script ${exiting ? "is-exiting" : ""}`}
       role="status"
       aria-live="polite"
-      aria-label="Preparing the live field guide"
+      aria-label="Opening The Internet Field Guide"
     >
       <div className="field-loader__topline">
-        <span>THE INTERNET FIELD GUIDE</span>
         <span>VOL. I · DIGITAL FAUNA</span>
+        <span>FIELD NOTES / 2026</span>
       </div>
 
-      <div className="field-loader__stage" aria-hidden="true">
-        <span className="field-loader__registration field-loader__registration--a">+</span>
-        <span className="field-loader__registration field-loader__registration--b">+</span>
-        <span className="field-loader__registration field-loader__registration--c">+</span>
-        <span className="field-loader__registration field-loader__registration--d">+</span>
+      <div className="field-loader__script-stage">
+        <svg
+          className="field-loader__botanical"
+          viewBox="0 0 180 120"
+          aria-hidden="true"
+        >
+          <path d="M18 103 C46 82 72 60 104 20" />
+          <path d="M47 80 C34 61 25 48 20 35" />
+          <path d="M61 69 C46 54 41 41 39 27" />
+          <path d="M76 56 C66 41 64 28 66 15" />
+          <path d="M91 41 C106 43 121 38 135 27" />
+          <path d="M78 55 C95 61 111 62 128 55" />
+          <path d="M59 71 C75 82 91 87 111 86" />
+          <circle cx="19" cy="34" r="3" />
+          <circle cx="38" cy="26" r="3" />
+          <circle cx="66" cy="14" r="3" />
+          <circle cx="136" cy="26" r="3" />
+          <circle cx="129" cy="55" r="3" />
+          <circle cx="112" cy="86" r="3" />
+        </svg>
 
-        <div className="field-loader__specimen">
-          <i className="field-loader__wing field-loader__wing--left" />
-          <i className="field-loader__wing field-loader__wing--right" />
-          <i className="field-loader__body" />
-          <i className="field-loader__scan" />
+        <div className="field-loader__script-wrap" aria-hidden="true">
+          <span className="field-loader__script-ghost">The Internet Field Guide</span>
+          <span
+            className="field-loader__script-ink"
+            onAnimationEnd={(event) => {
+              if (event.animationName === "field-script-write") {
+                setScriptComplete(true);
+              }
+            }}
+          >
+            The Internet Field Guide
+          </span>
+          <i className="field-loader__pen-nib" />
         </div>
+
+        <p className="field-loader__script-subtitle">
+          notes on strange creatures found between tabs
+        </p>
       </div>
 
       <div className="field-loader__footer">
         <div>
-          <span>PREPARING LIVE PLATE 00</span>
+          <span>{progress < 100 ? "PREPARING LIVE FIELD PLATES" : "FIELD GUIDE READY"}</span>
           <strong>{String(progress).padStart(3, "0")}%</strong>
         </div>
         <div className="field-loader__track" aria-hidden="true">
           <i style={{ width: `${progress}%` }} />
         </div>
-        <p>{progress < 100 ? "registering paper · ink · specimen behaviour" : "field plate ready"}</p>
       </div>
     </div>
   );
@@ -127,20 +162,24 @@ export function useEditorialReveals(enabled: boolean, refreshKey = 0) {
 
     const root = document.documentElement;
     root.classList.add("tifg-motion");
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const reveal = (element: HTMLElement) => {
+      if (element.dataset.motionPlayed === "1") return;
+      element.dataset.motionPlayed = "1";
+      element.classList.add("is-revealed");
+    };
 
     const targets = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        ".field-preface, .section-heading, .specimen-card, .quiet-zone-v2, .secret-section, .journal-heading, .journal-grid, footer",
-      ),
+      document.querySelectorAll<HTMLElement>(REVEAL_SELECTOR),
     );
 
     targets.forEach((element) => {
       element.dataset.reveal = "editorial";
     });
 
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduced) {
-      targets.forEach((element) => element.classList.add("is-revealed"));
+      targets.forEach(reveal);
       return;
     }
 
@@ -148,22 +187,80 @@ export function useEditorialReveals(enabled: boolean, refreshKey = 0) {
       (entries) => {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
-          (entry.target as HTMLElement).classList.add("is-revealed");
+          reveal(entry.target as HTMLElement);
           observer.unobserve(entry.target);
         });
       },
       {
-        threshold: 0.14,
-        rootMargin: "0px 0px -9% 0px",
+        threshold: 0.08,
+        rootMargin: "0px 0px -4% 0px",
       },
     );
 
     targets.forEach((element) => {
-      if (!element.classList.contains("is-revealed")) observer.observe(element);
+      if (element.dataset.motionPlayed === "1") return;
+
+      const rect = element.getBoundingClientRect();
+      if (rect.top < window.innerHeight * 0.96 && rect.bottom > 0) {
+        reveal(element);
+      } else {
+        observer.observe(element);
+      }
     });
+
+    const revealHashDestination = () => {
+      if (!window.location.hash) return;
+
+      let target: Element | null = null;
+      try {
+        target = document.querySelector(window.location.hash);
+      } catch {
+        return;
+      }
+      if (!target) return;
+
+      const scoped = Array.from(
+        target.querySelectorAll<HTMLElement>(REVEAL_SELECTOR),
+      );
+
+      if (target instanceof HTMLElement && target.matches(REVEAL_SELECTOR)) {
+        scoped.unshift(target);
+      }
+
+      // Reveal only the heading/first content immediately. Everything after it
+      // can still animate normally as the visitor continues scrolling.
+      scoped.slice(0, 2).forEach(reveal);
+    };
+
+    const onAnchorClick = (event: MouseEvent) => {
+      const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>(
+        'a[href^="#"]',
+      );
+      if (!anchor) return;
+      window.setTimeout(revealHashDestination, 80);
+    };
+
+    window.addEventListener("hashchange", revealHashDestination);
+    document.addEventListener("click", onAnchorClick, true);
+
+    // Fail-open watchdog: if an observer edge case ever occurs, anything that
+    // is actually on screen is made visible/animated rather than staying blank.
+    const watchdog = window.setInterval(() => {
+      targets.forEach((element) => {
+        if (element.dataset.motionPlayed === "1") return;
+        const rect = element.getBoundingClientRect();
+        if (rect.top < window.innerHeight * 1.05 && rect.bottom > -40) {
+          reveal(element);
+          observer.unobserve(element);
+        }
+      });
+    }, 420);
 
     return () => {
       observer.disconnect();
+      window.clearInterval(watchdog);
+      window.removeEventListener("hashchange", revealHashDestination);
+      document.removeEventListener("click", onAnchorClick, true);
     };
   }, [enabled, refreshKey]);
 }
